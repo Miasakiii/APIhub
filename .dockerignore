@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Backend
+apihub
+*.exe
+*.test
+*.out
+vendor/
+
+# Data
+.env
+.env.local
+data/
+.apihub/
+*.db
+*.db-shm
+*.db-wal
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,47 @@
+# Go
+apihub
+apihub.exe
+*.exe
+*.test
+*.out
+vendor/
+
+# Data & Config
+.env
+.env.local
+data/
+.apihub/
+*.db
+*.db-shm
+*.db-wal
+.master_key
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Planning docs (not for public repo)
+ARCHITECTURE.md
+ROADMAP.md
+ANALYSIS.md
+spike/
+
+# Logs
+*.log
+npm-debug.log*

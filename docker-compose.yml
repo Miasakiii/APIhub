@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  apihub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: apihub
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - apihub-data:/app/data
+    environment:
+      - APIHUB_DATA_DIR=/app/data
+      - APIHUB_PORT=8080
+      - APIHUB_AUTH_ENABLED=true
+      - APIHUB_CORS_ORIGIN=http://localhost:8080
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  apihub-data:
