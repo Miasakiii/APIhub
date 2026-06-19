@@ -25,11 +25,21 @@ export function WebSocketProvider({ children }: Props) {
   }, [])
 
   useEffect(() => {
-    function doConnect() {
+    async function doConnect() {
       // Build WebSocket URL
+      let wsHost = location.host
+      // In Wails desktop mode, connect to local Gin server
+      if (window.go?.main?.WailsApp) {
+        try {
+          const port = await window.go.main.WailsApp.GetAPIPort()
+          wsHost = `127.0.0.1:${port}`
+        } catch {
+          wsHost = '127.0.0.1:8080'
+        }
+      }
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
       const token = getToken()
-      let url = `${proto}//${location.host}/ws`
+      let url = `${proto}//${wsHost}/ws`
       if (token) {
         url += `?token=${token}`
       }

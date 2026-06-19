@@ -1,6 +1,34 @@
 import { clearToken, getAuthHeaders } from './lib/auth'
 
-const BASE = '/api/v1'
+// Detect Wails desktop environment
+function getBaseURL(): string {
+  // Check if running in Wails (window.go.main.WailsApp exists)
+  if (typeof window !== 'undefined' && window.go?.main?.WailsApp) {
+    // In Wails mode, we need absolute URL to the local Gin server
+    // This will be set asynchronously via initWailsBase()
+    return '' // Will be updated after Wails init
+  }
+  // Web mode: use relative path
+  return '/api/v1'
+}
+
+let BASE = getBaseURL()
+
+// Initialize Wails base URL asynchronously
+async function initWailsBase() {
+  if (window.go?.main?.WailsApp) {
+    try {
+      const url = await window.go.main.WailsApp.GetAPIURL()
+      BASE = url + '/api/v1'
+    } catch {
+      // Fallback to default port
+      BASE = 'http://127.0.0.1:8080/api/v1'
+    }
+  }
+}
+
+// Auto-initialize on module load
+initWailsBase()
 
 type OnUnauthorized = () => void
 let onUnauthorized: OnUnauthorized | null = null
