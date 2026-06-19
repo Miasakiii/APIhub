@@ -61,9 +61,12 @@ func (e *Engine) listEnabledRules() ([]model.Alert, error) {
 	for rows.Next() {
 		var a model.Alert
 		var enabled int
-		if err := rows.Scan(&a.ID, &a.Name, &a.Type, &a.ProviderID, &a.APIKeyID, &a.Threshold, &a.Unit, &enabled); err != nil {
+		var providerID, apiKeyID sql.NullString
+		if err := rows.Scan(&a.ID, &a.Name, &a.Type, &providerID, &apiKeyID, &a.Threshold, &a.Unit, &enabled); err != nil {
 			continue
 		}
+		a.ProviderID = providerID.String
+		a.APIKeyID = apiKeyID.String
 		a.Enabled = enabled == 1
 		rules = append(rules, a)
 	}

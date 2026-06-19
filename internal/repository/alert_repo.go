@@ -62,8 +62,16 @@ func (r *AlertRepo) Create(a model.Alert) error {
 	_, err := r.db.Exec(`
 		INSERT INTO alerts (id, name, type, provider_id, api_key_id, threshold, unit, enabled)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, a.ID, a.Name, a.Type, a.ProviderID, a.APIKeyID, a.Threshold, a.Unit, 1)
+	`, a.ID, a.Name, a.Type, nullIfEmpty(a.ProviderID), nullIfEmpty(a.APIKeyID), a.Threshold, a.Unit, 1)
 	return err
+}
+
+// nullIfEmpty returns nil for empty strings, so SQLite stores NULL for FK columns.
+func nullIfEmpty(s string) interface{} {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 // Update updates an existing alert.
@@ -75,7 +83,7 @@ func (r *AlertRepo) Update(id string, a model.Alert) error {
 	_, err := r.db.Exec(`
 		UPDATE alerts SET name=?, type=?, provider_id=?, api_key_id=?, threshold=?, unit=?, enabled=?
 		WHERE id=?
-	`, a.Name, a.Type, a.ProviderID, a.APIKeyID, a.Threshold, a.Unit, enabled, id)
+	`, a.Name, a.Type, nullIfEmpty(a.ProviderID), nullIfEmpty(a.APIKeyID), a.Threshold, a.Unit, enabled, id)
 	return err
 }
 

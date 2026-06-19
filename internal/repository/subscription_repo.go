@@ -139,9 +139,9 @@ func (r *SubscriptionRepo) UpsertAutoSubscription(providerID, planName, currency
 	// Not found — create
 	id := genSubID()
 	_, err = r.db.Exec(`
-		INSERT INTO subscriptions (id, provider_id, plan_name, currency, billing_cycle,
+		INSERT INTO subscriptions (id, provider_id, plan_name, price, currency, billing_cycle,
 			quota_type, quota_total, quota_used, status, source)
-		VALUES (?, ?, ?, ?, 'pay-as-go', 'credits', ?, ?, 'active', 'auto')
+		VALUES (?, ?, ?, 0, ?, 'pay-as-go', 'credits', ?, ?, 'active', 'auto')
 	`, id, providerID, planName, currency, quotaTotal, quotaUsed)
 	return err
 }
@@ -179,15 +179,16 @@ func (r *SubscriptionRepo) GetExpiring(withinDays int) ([]model.Subscription, er
 func scanSubscription(rows *sql.Rows) (model.Subscription, error) {
 	var s model.Subscription
 	var startDate, renewDate sql.NullString
-	var createdAt, updatedAt sql.NullString
+	var createdAt, updatedAt, notes sql.NullString
 	var providerName string
 	var autoRenew int
 	if err := rows.Scan(&s.ID, &s.ProviderID, &s.PlanName, &s.Price, &s.Currency, &s.BillingCycle,
 		&s.QuotaType, &s.QuotaTotal, &s.QuotaUsed, &startDate, &renewDate,
-		&autoRenew, &s.Status, &s.Source, &s.Notes, &createdAt, &updatedAt, &providerName); err != nil {
+		&autoRenew, &s.Status, &s.Source, &notes, &createdAt, &updatedAt, &providerName); err != nil {
 		return s, err
 	}
 	s.AutoRenew = autoRenew == 1
+	s.Notes = notes.String
 	s.StartDate = parseDatePtr(startDate)
 	s.RenewDate = parseDatePtr(renewDate)
 	if createdAt.Valid {
