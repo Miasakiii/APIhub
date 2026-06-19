@@ -32,6 +32,7 @@ Latest local verification:
 |---|---|
 | `npm.cmd run build` in `frontend/` | ✅ Pass (code-split, no chunk warning) |
 | `npm.cmd run lint` in `frontend/` | ✅ Pass (0 errors, 0 warnings) |
+| `npm.cmd run test` in `frontend/` | ✅ Pass (42 tests) |
 | `go test ./internal/...` | ✅ Pass |
 | `go vet ./internal/...` | ✅ Pass |
 
