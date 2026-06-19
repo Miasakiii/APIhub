@@ -35,7 +35,20 @@ Latest local verification:
 | `go test ./internal/...` | ✅ Pass |
 | `go vet ./internal/...` | ✅ Pass |
 
-v0.13 adds Wails desktop app support (single-file distribution, system tray) and technical debt cleanup. See [ROADMAP.md](ROADMAP.md) for P3+ plans.
+Test coverage (v0.14):
+
+| Package | Coverage |
+|---|---|
+| scanner | 83.1% |
+| crypto | 76.0% |
+| db | 67.8% |
+| repository | 41.1% |
+| service | 40.0% |
+| alert | 22.0% |
+| ws | 17.2% |
+| util | 100% |
+
+v0.14 adds desktop settings panel, notification integration, and comprehensive unit tests. See [ROADMAP.md](ROADMAP.md) for P3+ plans.
 
 ## Features
 
