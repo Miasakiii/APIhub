@@ -2,7 +2,7 @@ package api
 
 import (
 	"apihub/internal/crypto"
-	"apihub/internal/repository"
+	"apihub/internal/service"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -13,7 +13,7 @@ import (
 )
 
 // RegisterPlayground registers the playground endpoint.
-func RegisterPlayground(g *gin.RouterGroup, keyRepo *repository.KeyRepo, store *crypto.Store, sensitiveMW gin.HandlerFunc) {
+func RegisterPlayground(g *gin.RouterGroup, keySvc *service.KeyService, store *crypto.Store, sensitiveMW gin.HandlerFunc) {
 	g.POST("/chat", sensitiveMW, func(c *gin.Context) {
 		var req struct {
 			KeyID    string `json:"key_id" binding:"required"`
@@ -30,7 +30,7 @@ func RegisterPlayground(g *gin.RouterGroup, keyRepo *repository.KeyRepo, store *
 		}
 
 		// Get key details
-		detail, err := keyRepo.GetByKeyID(req.KeyID)
+		detail, err := keySvc.GetByKeyID(req.KeyID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "key not found"})
 			return
@@ -182,7 +182,7 @@ func RegisterPlayground(g *gin.RouterGroup, keyRepo *repository.KeyRepo, store *
 			return
 		}
 
-		detail, err := keyRepo.GetByKeyID(req.KeyID)
+		detail, err := keySvc.GetByKeyID(req.KeyID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "key not found"})
 			return

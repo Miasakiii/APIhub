@@ -76,7 +76,7 @@ func Register(r *gin.Engine, db *sql.DB, store *crypto.Store, cfg AuthConfig, hu
 	RegisterFrequency(protected.Group("/frequency"), services.Frequency)
 	RegisterExport(protected.Group("/export"), services.Usage)
 	RegisterProviderDetail(protected.Group("/providers"), services.Provider)
-	RegisterPlayground(protected.Group("/playground"), keyRepo, store, sensitiveMW)
+	RegisterPlayground(protected.Group("/playground"), services.Key, store, sensitiveMW)
 	RegisterWebhook(protected.Group("/webhooks"), services.Webhook)
 	registerSessions(protected.Group("/sessions"), services.Session)
 	RegisterScan(protected.Group("/scan"), services.Provider, services.Key)
@@ -87,8 +87,8 @@ func Register(r *gin.Engine, db *sql.DB, store *crypto.Store, cfg AuthConfig, hu
 }
 
 // RegisterSyncRoutes registers sync endpoints on the protected group.
-func RegisterSyncRoutes(g *gin.RouterGroup, keyRepo *repository.KeyRepo, registry *syncer.Registry, mgr *syncer.Manager, store *crypto.Store, trigger CCSwitchTrigger, syncStateSvc *service.SyncStateService) {
-	RegisterSync(g, keyRepo, registry, mgr, store, syncStateSvc)
+func RegisterSyncRoutes(g *gin.RouterGroup, keySvc *service.KeyService, registry *syncer.Registry, mgr *syncer.Manager, store *crypto.Store, trigger CCSwitchTrigger, syncStateSvc *service.SyncStateService) {
+	RegisterSync(g, keySvc, registry, mgr, store, syncStateSvc)
 	g.POST("/sync/ccswitch", TriggerCCSwitchSync(trigger))
 }
 

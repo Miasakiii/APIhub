@@ -35,6 +35,16 @@ type APIKey struct {
 	Provider *Provider `json:"provider,omitempty"`
 }
 
+// APIKeyDetail contains key metadata with encrypted data for decryption.
+// Used by playground and sync handlers to access provider info and encrypted key.
+type APIKeyDetail struct {
+	ProviderID   string
+	Syncer       string
+	Encrypted    []byte
+	BaseURL      string
+	ProviderType string
+}
+
 // Agent represents a tool/application that makes API calls (e.g. Claude Code, Cursor).
 type Agent struct {
 	ID        string    `json:"id"`

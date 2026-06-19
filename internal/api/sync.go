@@ -2,7 +2,6 @@ package api
 
 import (
 	"apihub/internal/crypto"
-	"apihub/internal/repository"
 	"apihub/internal/service"
 	"apihub/internal/syncer"
 	"apihub/internal/syncer/providers"
@@ -15,7 +14,7 @@ import (
 )
 
 // RegisterSync registers sync-related endpoints on the protected API group.
-func RegisterSync(g *gin.RouterGroup, keyRepo *repository.KeyRepo, registry *syncer.Registry, mgr *syncer.Manager, store *crypto.Store, syncStateSvc *service.SyncStateService) {
+func RegisterSync(g *gin.RouterGroup, keySvc *service.KeyService, registry *syncer.Registry, mgr *syncer.Manager, store *crypto.Store, syncStateSvc *service.SyncStateService) {
 	g.GET("/syncers", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"syncers": registry.Names(),
@@ -61,7 +60,7 @@ func RegisterSync(g *gin.RouterGroup, keyRepo *repository.KeyRepo, registry *syn
 	g.POST("/keys/:id/validate", func(c *gin.Context) {
 		keyID := c.Param("id")
 
-		detail, err := keyRepo.GetByKeyID(keyID)
+		detail, err := keySvc.GetByKeyID(keyID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "key not found"})
 			return

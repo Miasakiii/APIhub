@@ -18,6 +18,7 @@ type KeyRepository interface {
 	Create(id, providerID, keyHash string, encrypted []byte, name string) error
 	CreateWithSource(id, providerID, keyHash string, encrypted []byte, name, source string) error
 	List() ([]model.APIKey, error)
+	GetByKeyID(keyID string) (*model.APIKeyDetail, error)
 	GetEncryptedKey(id string) ([]byte, error)
 	Revoke(id string) error
 	Delete(id string) error
@@ -126,4 +127,9 @@ func (s *KeyService) Delete(id string) error {
 // CountActive returns the number of active keys.
 func (s *KeyService) CountActive() (int64, error) {
 	return s.repo.CountActive()
+}
+
+// GetByKeyID returns a key detail by its key ID (not the internal ID).
+func (s *KeyService) GetByKeyID(keyID string) (*model.APIKeyDetail, error) {
+	return s.repo.GetByKeyID(keyID)
 }

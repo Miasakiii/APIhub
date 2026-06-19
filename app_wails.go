@@ -163,10 +163,11 @@ func (a *WailsApp) initBackend() {
 
 	// Register sync routes
 	keyRepo := repository.NewKeyRepo(db.DB)
+	keySvc := service.NewKeyService(keyRepo, store)
 	syncStateSvc := service.NewSyncStateService(repository.NewSyncStateRepo(db.DB))
 	protected := r.Group("/api/v1")
 	protected.Use(api.OptionalAuthMiddleware(authCfg))
-	api.RegisterSyncRoutes(protected, keyRepo, syncRegistry, syncMgr, store, sched, syncStateSvc)
+	api.RegisterSyncRoutes(protected, keySvc, syncRegistry, syncMgr, store, sched, syncStateSvc)
 
 	// Health endpoint
 	r.GET("/health", func(c *gin.Context) {

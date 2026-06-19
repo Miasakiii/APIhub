@@ -134,8 +134,8 @@ func (r *KeyRepo) ListByProvider(providerID string) ([]model.APIKey, error) {
 }
 
 // GetByKeyID returns key details including encrypted data and provider info.
-func (r *KeyRepo) GetByKeyID(id string) (*KeyDetail, error) {
-	var d KeyDetail
+func (r *KeyRepo) GetByKeyID(id string) (*model.APIKeyDetail, error) {
+	var d model.APIKeyDetail
 	err := r.db.QueryRow(`
 		SELECT k.provider_id, COALESCE(p.syncer, ''), k.key_encrypted, COALESCE(p.base_url, ''), COALESCE(p.type, '')
 		FROM api_keys k
