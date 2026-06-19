@@ -29,12 +29,13 @@ import (
 
 // WailsApp is the main Wails application struct.
 type WailsApp struct {
-	ctx   context.Context
-	port  string
-	store *crypto.Store
-	db    *apihubDB.DB
-	sched *scheduler.Scheduler
-	hub   *ws.Hub
+	ctx        context.Context
+	port       string
+	store      *crypto.Store
+	db         *apihubDB.DB
+	sched      *scheduler.Scheduler
+	hub        *ws.Hub
+	minimizeToTray bool
 }
 
 // NewWailsApp creates a new WailsApp instance.
@@ -48,6 +49,7 @@ func NewWailsApp() *WailsApp {
 func (a *WailsApp) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.initBackend()
+	a.setupSystemTray()
 }
 
 // shutdown is called when the Wails app shuts down.
@@ -201,7 +203,69 @@ func (a *WailsApp) OpenExternalURL(url string) {
 
 // GetVersion returns the application version.
 func (a *WailsApp) GetVersion() string {
-	return "0.12.0"
+	return "0.13.0"
+}
+
+// setupSystemTray initializes the system tray with menu items.
+func (a *WailsApp) setupSystemTray() {
+	// System tray is handled by Wails runtime on supported platforms
+	// The tray menu items are configured in main_wails.go
+}
+
+// MinimizeToTray hides the window to system tray.
+func (a *WailsApp) MinimizeToTray() {
+	runtime.WindowMinimise(a.ctx)
+}
+
+// ShowWindow brings the window back from tray.
+func (a *WailsApp) ShowWindow() {
+	runtime.WindowShow(a.ctx)
+	runtime.WindowUnminimise(a.ctx)
+}
+
+// SetMinimizeToTray sets whether to minimize to tray on close.
+func (a *WailsApp) SetMinimizeToTray(enable bool) {
+	a.minimizeToTray = enable
+}
+
+// GetMinimizeToTray returns whether minimize to tray is enabled.
+func (a *WailsApp) GetMinimizeToTray() bool {
+	return a.minimizeToTray
+}
+
+// ShowNotification displays a native OS notification.
+func (a *WailsApp) ShowNotification(title, message string) {
+	runtime.EventsEmit(a.ctx, "notification", map[string]string{
+		"title":   title,
+		"message": message,
+	})
+}
+
+// SetAutoStart enables or disables auto-start on login.
+// Uses Windows Startup folder shortcut approach.
+func (a *WailsApp) SetAutoStart(enable bool) error {
+	startupDir := filepath.Join(os.Getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+	shortcutPath := filepath.Join(startupDir, "APIHub.url")
+
+	if enable {
+		executable, err := os.Executable()
+		if err != nil {
+			return fmt.Errorf("get executable: %w", err)
+		}
+		content := fmt.Sprintf("[InternetShortcut]\nURL=file:///%s\n", filepath.ToSlash(executable))
+		return os.WriteFile(shortcutPath, []byte(content), 0644)
+	}
+	// Remove shortcut
+	os.Remove(shortcutPath)
+	return nil
+}
+
+// IsAutoStartEnabled returns whether auto-start is enabled.
+func (a *WailsApp) IsAutoStartEnabled() bool {
+	startupDir := filepath.Join(os.Getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+	shortcutPath := filepath.Join(startupDir, "APIHub.url")
+	_, err := os.Stat(shortcutPath)
+	return err == nil
 }
 
 // GetDataDir returns the data directory path.

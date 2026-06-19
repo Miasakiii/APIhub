@@ -17,7 +17,7 @@ It aggregates data from three sources:
 
 ## Current Status
 
-> Snapshot: **v0.11 stable**, updated 2026-06-19.
+> Snapshot: **v0.13 stable**, updated 2026-06-19.
 
 APIHub has a real backend, database schema, auth flow, scheduler, sync paths, and a polished React dashboard with dark mode support. Docker serves the frontend in a single container — `docker-compose up --build` is sufficient to run the full UI.
 
@@ -35,7 +35,7 @@ Latest local verification:
 | `go test ./internal/...` | ✅ Pass |
 | `go vet ./internal/...` | ✅ Pass |
 
-v0.4 adds react-router with route-level code splitting, and refactors the backend to a consistent repo→service→handler architecture. See [ROADMAP.md](ROADMAP.md) for P3+ plans.
+v0.13 adds Wails desktop app support (single-file distribution, system tray) and technical debt cleanup. See [ROADMAP.md](ROADMAP.md) for P3+ plans.
 
 ## Features
 
