@@ -2,8 +2,8 @@ package api
 
 import (
 	"apihub/internal/crypto"
+	"apihub/internal/repository"
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,7 +13,7 @@ import (
 )
 
 // RegisterPlayground registers the playground endpoint.
-func RegisterPlayground(g *gin.RouterGroup, db *sql.DB, store *crypto.Store, sensitiveMW gin.HandlerFunc) {
+func RegisterPlayground(g *gin.RouterGroup, keyRepo *repository.KeyRepo, store *crypto.Store, sensitiveMW gin.HandlerFunc) {
 	g.POST("/chat", sensitiveMW, func(c *gin.Context) {
 		var req struct {
 			KeyID    string `json:"key_id" binding:"required"`
@@ -30,21 +30,18 @@ func RegisterPlayground(g *gin.RouterGroup, db *sql.DB, store *crypto.Store, sen
 		}
 
 		// Get key details
-		var encryptedKey []byte
-		var providerID, baseURL, providerType string
-		err := db.QueryRow(`
-			SELECT k.key_encrypted, k.provider_id, COALESCE(p.base_url, ''), COALESCE(p.type, '')
-			FROM api_keys k
-			JOIN providers p ON k.provider_id = p.id
-			WHERE k.id = ?
-		`, req.KeyID).Scan(&encryptedKey, &providerID, &baseURL, &providerType)
+		detail, err := keyRepo.GetByKeyID(req.KeyID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "key not found"})
 			return
 		}
 
+		providerID := detail.ProviderID
+		baseURL := detail.BaseURL
+		providerType := detail.ProviderType
+
 		// Decrypt key
-		plain, err := store.Decrypt(encryptedKey)
+		plain, err := store.Decrypt(detail.Encrypted)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "decrypt failed"})
 			return
@@ -185,20 +182,14 @@ func RegisterPlayground(g *gin.RouterGroup, db *sql.DB, store *crypto.Store, sen
 			return
 		}
 
-		var encryptedKey []byte
-		var baseURL string
-		err := db.QueryRow(`
-			SELECT k.key_encrypted, COALESCE(p.base_url, '')
-			FROM api_keys k
-			JOIN providers p ON k.provider_id = p.id
-			WHERE k.id = ?
-		`, req.KeyID).Scan(&encryptedKey, &baseURL)
+		detail, err := keyRepo.GetByKeyID(req.KeyID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "key not found"})
 			return
 		}
 
-		plain, err := store.Decrypt(encryptedKey)
+		baseURL := detail.BaseURL
+		plain, err := store.Decrypt(detail.Encrypted)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "decrypt failed"})
 			return

@@ -1,27 +1,80 @@
-import { useEffect, useState } from 'react'
-import { Settings as SettingsPage } from './pages/Settings'
-import { Dashboard } from './pages/Dashboard'
-import { Providers } from './pages/Providers'
-import { Keys } from './pages/Keys'
-import { UsageLog } from './pages/UsageLog'
-import { Alerts } from './pages/Alerts'
-import { Subscriptions } from './pages/Subscriptions'
-import { Frequency } from './pages/Frequency'
-import { Playground } from './pages/Playground'
-import { Login } from './pages/Login'
-import { ModelDetail } from './pages/ModelDetail'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { api, setUnauthorizedHandler } from './api'
 import { clearToken, isAuthed } from './lib/auth'
 import { ThemeProvider } from './lib/theme'
 import { ToastProvider } from './components/ui'
 import { Sidebar } from './components/layout/Sidebar'
 import { TopBar } from './components/layout/TopBar'
-import { allNav } from './lib/nav'
+import { Login } from './pages/Login'
+
+// Route-level code splitting
+const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })))
+const ModelDetail = lazy(() => import('./pages/ModelDetail').then(m => ({ default: m.ModelDetail })))
+const Providers = lazy(() => import('./pages/Providers').then(m => ({ default: m.Providers })))
+const Keys = lazy(() => import('./pages/Keys').then(m => ({ default: m.Keys })))
+const UsageLog = lazy(() => import('./pages/UsageLog').then(m => ({ default: m.UsageLog })))
+const Alerts = lazy(() => import('./pages/Alerts').then(m => ({ default: m.Alerts })))
+const Subscriptions = lazy(() => import('./pages/Subscriptions').then(m => ({ default: m.Subscriptions })))
+const Frequency = lazy(() => import('./pages/Frequency').then(m => ({ default: m.Frequency })))
+const Sessions = lazy(() => import('./pages/Sessions').then(m => ({ default: m.Sessions })))
+const Agents = lazy(() => import('./pages/Agents').then(m => ({ default: m.Agents })))
+const Playground = lazy(() => import('./pages/Playground').then(m => ({ default: m.Playground })))
+const SettingsPage = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 animate-pulse shadow-lg shadow-indigo-500/30" />
+        <p className="text-sm text-slate-400">加载中...</p>
+      </div>
+    </div>
+  )
+}
+
+function AppLayout({ onLogout, authEnabled }: { onLogout?: () => void; authEnabled: boolean }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const location = useLocation()
+
+  return (
+    <div className="flex h-screen overflow-hidden app-shell-bg">
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <TopBar
+          authEnabled={authEnabled}
+          onLogout={onLogout}
+          onMenuOpen={() => setSidebarOpen(true)}
+        />
+
+        <div className="flex-1 overflow-auto p-4 lg:p-8">
+          <div className="max-w-7xl mx-auto page-enter" key={location.pathname}>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/model/:model" element={<ModelDetail />} />
+                <Route path="/providers" element={<Providers />} />
+                <Route path="/keys" element={<Keys />} />
+                <Route path="/usage" element={<UsageLog />} />
+                <Route path="/alerts" element={<Alerts />} />
+                <Route path="/subscriptions" element={<Subscriptions />} />
+                <Route path="/frequency" element={<Frequency />} />
+                <Route path="/sessions" element={<Sessions />} />
+                <Route path="/agents" element={<Agents />} />
+                <Route path="/playground" element={<Playground />} />
+                <Route path="/settings" element={<SettingsPage onLogout={authEnabled ? onLogout : undefined} />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
 
 function AppShell() {
-  const [page, setPage] = useState('dashboard')
-  const [selectedModel, setSelectedModel] = useState('')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [authEnabled, setAuthEnabled] = useState<boolean | null>(null)
   const [allowRegister, setAllowRegister] = useState(true)
   const [authed, setAuthed] = useState(isAuthed())
@@ -55,68 +108,21 @@ function AppShell() {
     return <Login onSuccess={() => setAuthed(true)} allowRegister={allowRegister} />
   }
 
-  const currentLabel = page === 'model-detail' ? selectedModel : allNav.find((n) => n.id === page)?.label ?? ''
+  const handleLogout = authEnabled
+    ? () => { clearToken(); setAuthed(false) }
+    : undefined
 
-  return (
-    <div className="flex h-screen overflow-hidden app-shell-bg">
-      <Sidebar
-        page={page}
-        setPage={setPage}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar
-          currentLabel={currentLabel}
-          authEnabled={!!authEnabled}
-          onLogout={
-            authEnabled
-              ? () => {
-                  clearToken()
-                  setAuthed(false)
-                }
-              : undefined
-          }
-          onMenuOpen={() => setSidebarOpen(true)}
-        />
-
-        <div className="flex-1 overflow-auto p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto page-enter" key={page}>
-            {page === 'dashboard' && <Dashboard onModelClick={(m) => { setSelectedModel(m); setPage('model-detail') }} />}
-            {page === 'model-detail' && <ModelDetail model={selectedModel} onBack={() => setPage('dashboard')} />}
-            {page === 'providers' && <Providers />}
-            {page === 'keys' && <Keys />}
-            {page === 'usage' && <UsageLog />}
-            {page === 'alerts' && <Alerts />}
-            {page === 'subscriptions' && <Subscriptions />}
-            {page === 'frequency' && <Frequency />}
-            {page === 'playground' && <Playground />}
-            {page === 'settings' && (
-              <SettingsPage
-                onLogout={
-                  authEnabled
-                    ? () => {
-                        clearToken()
-                        setAuthed(false)
-                      }
-                    : undefined
-                }
-              />
-            )}
-          </div>
-        </div>
-      </main>
-    </div>
-  )
+  return <AppLayout onLogout={handleLogout} authEnabled={!!authEnabled} />
 }
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <AppShell />
-      </ToastProvider>
-    </ThemeProvider>
+    <BrowserRouter>
+      <ThemeProvider>
+        <ToastProvider>
+          <AppShell />
+        </ToastProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   )
 }

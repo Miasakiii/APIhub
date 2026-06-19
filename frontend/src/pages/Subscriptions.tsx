@@ -80,7 +80,10 @@ export function Subscriptions() {
                     {s.provider && <p className="text-xs text-slate-400 dark:text-slate-500">{s.provider.name}</p>}
                   </div>
                 </div>
-                <Badge variant={status.variant}>{status.label}</Badge>
+                <div className="flex items-center gap-1.5">
+                  {s.source === 'auto' && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-medium border border-indigo-100 dark:border-indigo-800/50">自动检测</span>}
+                  <Badge variant={status.variant}>{status.label}</Badge>
+                </div>
               </div>
 
               <div className="flex items-end gap-1 mb-4">

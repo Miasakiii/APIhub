@@ -1,14 +1,22 @@
+import { useLocation, useParams } from 'react-router-dom'
 import { Menu, LogOut } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { allNav } from '../../lib/nav'
 
 interface TopBarProps {
-  currentLabel: string
   authEnabled: boolean
   onLogout?: () => void
   onMenuOpen: () => void
 }
 
-export function TopBar({ currentLabel, authEnabled, onLogout, onMenuOpen }: TopBarProps) {
+export function TopBar({ authEnabled, onLogout, onMenuOpen }: TopBarProps) {
+  const location = useLocation()
+  const params = useParams()
+
+  const currentLabel = location.pathname.startsWith('/model/')
+    ? (params.model ?? '')
+    : allNav.find((n) => n.path === location.pathname)?.label ?? ''
+
   return (
     <header className="h-16 shrink-0 flex items-center gap-4 px-4 lg:px-8 border-b border-slate-200/60 dark:border-slate-700/60 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl">
       <button

@@ -35,12 +35,23 @@ type APIKey struct {
 	Provider *Provider `json:"provider,omitempty"`
 }
 
+// Agent represents a tool/application that makes API calls (e.g. Claude Code, Cursor).
+type Agent struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Type      string    `json:"type"` // cli, ide, api, proxy
+	Icon      string    `json:"icon,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+}
+
 // UsageRecord represents a single API call's token usage.
 type UsageRecord struct {
 	ID           string    `json:"id"`
 	APIKeyID     string    `json:"api_key_id,omitempty"`
 	ProviderID   string    `json:"provider_id"`
 	Model        string    `json:"model"`
+	AgentID      string    `json:"agent_id,omitempty"`
 	InputTokens  int64     `json:"input_tokens"`
 	OutputTokens int64     `json:"output_tokens"`
 	CacheRead    int64     `json:"cache_read"`
@@ -57,6 +68,7 @@ type DailyStats struct {
 	ProviderID   string    `json:"provider_id"`
 	Model        string    `json:"model"`
 	Source       string    `json:"source"`
+	AgentID      string    `json:"agent_id,omitempty"`
 	Date         string    `json:"date"`
 	RequestCount int64     `json:"request_count"`
 	InputTokens  int64     `json:"input_tokens"`
@@ -87,4 +99,67 @@ type SyncLog struct {
 	Error    string    `json:"error,omitempty"`
 	Duration int64     `json:"duration_ms"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// WebhookSetting represents a webhook configuration.
+type WebhookSetting struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	URL     string `json:"url"`
+	Headers string `json:"headers"`
+	Enabled bool   `json:"enabled"`
+}
+
+// ProviderDetail contains a provider with its keys and usage summary.
+type ProviderDetail struct {
+	Provider      Provider  `json:"provider"`
+	Keys          []APIKey  `json:"keys"`
+	TotalCost     float64   `json:"total_cost"`
+	TotalRequests int64     `json:"total_requests"`
+}
+
+// ModelPricing stores per-million-token costs for a model.
+type ModelPricing struct {
+	ModelID               string  `json:"model_id"`
+	DisplayName           string  `json:"display_name"`
+	InputCostPerM         float64 `json:"input_cost_per_million"`
+	OutputCostPerM        float64 `json:"output_cost_per_million"`
+	CacheReadCostPerM     float64 `json:"cache_read_cost_per_million"`
+	CacheCreationCostPerM float64 `json:"cache_creation_cost_per_million"`
+	IsCustom              bool    `json:"is_custom"`
+}
+
+// UsageSession represents a group of consecutive API calls within a time window.
+type UsageSession struct {
+	ID           string    `json:"id"`
+	ProviderID   string    `json:"provider_id"`
+	Model        string    `json:"model"`
+	Source       string    `json:"source"`
+	AgentID      string    `json:"agent_id,omitempty"`
+	StartedAt    time.Time `json:"started_at"`
+	EndedAt      time.Time `json:"ended_at"`
+	DurationMs   int64     `json:"duration_ms"`
+	RequestCount int64     `json:"request_count"`
+	InputTokens  int64     `json:"input_tokens"`
+	OutputTokens int64     `json:"output_tokens"`
+	CacheRead    int64     `json:"cache_read"`
+	CacheCreate  int64     `json:"cache_create"`
+	CostUSD      float64   `json:"cost_usd"`
+	CreatedAt    time.Time `json:"created_at,omitempty"`
+}
+
+// ActivityBucket represents aggregated usage within a single hour for a provider+model.
+type ActivityBucket struct {
+	ID           string    `json:"id"`
+	BucketStart  time.Time `json:"bucket_start"`
+	ProviderID   string    `json:"provider_id"`
+	Model        string    `json:"model"`
+	AgentID      string    `json:"agent_id,omitempty"`
+	RequestCount int64     `json:"request_count"`
+	InputTokens  int64     `json:"input_tokens"`
+	OutputTokens int64     `json:"output_tokens"`
+	CacheRead    int64     `json:"cache_read"`
+	CacheCreate  int64     `json:"cache_create"`
+	CostUSD      float64   `json:"cost_usd"`
+	UpdatedAt    time.Time `json:"updated_at,omitempty"`
 }

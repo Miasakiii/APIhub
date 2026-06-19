@@ -149,6 +149,7 @@ export interface Subscription {
   renew_date?: string
   auto_renew: boolean
   status: string
+  source?: string
   notes?: string
   created_at?: string
   provider?: Provider
@@ -161,6 +162,69 @@ export interface SyncState {
   offset: number
   status: string
   error?: string
+}
+
+export interface UsageSession {
+  id: string
+  provider_id: string
+  model: string
+  source: string
+  started_at: string
+  ended_at: string
+  duration_ms: number
+  request_count: number
+  input_tokens: number
+  output_tokens: number
+  cache_read: number
+  cache_create: number
+  cost_usd: number
+}
+
+export interface ActivityBucket {
+  id: string
+  bucket_start: string
+  provider_id: string
+  model: string
+  request_count: number
+  input_tokens: number
+  output_tokens: number
+  cache_read: number
+  cache_create: number
+  cost_usd: number
+}
+
+export interface SessionStats {
+  total_sessions: number
+  avg_duration_ms: number
+  avg_cost_usd: number
+  total_cost_usd: number
+  total_requests: number
+}
+
+export interface Agent {
+  id: string
+  name: string
+  type: string
+  icon?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ScanFinding {
+  provider_type: string
+  name: string
+  base_url: string
+  masked_key: string
+  source: string
+  config_path: string
+}
+
+export interface ScanImportResult {
+  name: string
+  provider_id?: string
+  key_id?: string
+  status: 'created' | 'skipped' | 'error'
+  message?: string
 }
 
 export interface AuthConfig {
@@ -255,5 +319,35 @@ export const api = {
       a.click()
       URL.revokeObjectURL(url)
     },
+  },
+
+  sessions: {
+    list: (params?: { provider_id?: string; model?: string; source?: string; from?: string; to?: string; page?: number; page_size?: number }) => {
+      const q = new URLSearchParams(Object.entries(params || {}).filter(([, v]) => v) as [string, string][])
+      return get<{ sessions: UsageSession[]; total: number; page: number; page_size: number }>(`/sessions?${q}`)
+    },
+    stats: () => get<SessionStats>('/sessions/stats'),
+    buckets: (params?: { from?: string; to?: string; provider_id?: string; model?: string }) => {
+      const q = new URLSearchParams(Object.entries(params || {}).filter(([, v]) => v) as [string, string][])
+      return get<{ buckets: ActivityBucket[] }>(`/sessions/buckets?${q}`)
+    },
+    hourly: (date?: string) => {
+      const q = date ? `?date=${date}` : ''
+      return get<{ date: string; buckets: ActivityBucket[] }>(`/sessions/hourly${q}`)
+    },
+  },
+
+  scan: {
+    run: () => post<{ findings: ScanFinding[]; total: number }>('/scan'),
+    import: (indices?: number[]) =>
+      post<{ results: ScanImportResult[]; total: number }>('/scan/import', { indices: indices || [] }),
+  },
+
+  agents: {
+    list: () => get<Agent[]>('/agents'),
+    create: (a: Partial<Agent>) => post<Agent>('/agents', a),
+    get: (id: string) => get<Agent>(`/agents/${id}`),
+    update: (id: string, a: Partial<Agent>) => put(`/agents/${id}`, a),
+    delete: (id: string) => del(`/agents/${id}`),
   },
 }

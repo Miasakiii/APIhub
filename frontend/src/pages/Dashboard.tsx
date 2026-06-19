@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   DollarSign, BarChart3, Activity, Bell, Zap, Download, RefreshCw,
   Layers, ArrowUpRight, Cpu
@@ -40,7 +41,8 @@ interface Alert {
   enabled: boolean
 }
 
-export function Dashboard({ onModelClick }: { onModelClick?: (model: string) => void }) {
+export function Dashboard() {
+  const navigate = useNavigate()
   const [summary, setSummary] = useState<Summary | null>(null)
   const [trend, setTrend] = useState<TrendItem[]>([])
   const [breakdown, setBreakdown] = useState<BreakdownItem[]>([])
@@ -147,7 +149,7 @@ export function Dashboard({ onModelClick }: { onModelClick?: (model: string) => 
               <button
                 type="button"
                 key={m.model}
-                onClick={() => onModelClick?.(m.model)}
+                onClick={() => navigate(`/model/${encodeURIComponent(m.model)}`)}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition text-left group"
               >
                 <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs flex items-center justify-center font-bold shrink-0">

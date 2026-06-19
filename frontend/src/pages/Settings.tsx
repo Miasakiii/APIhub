@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Settings as SettingsIcon, User, Shield, Database, Bell, Sun, Moon, Languages, DollarSign, Trash2, Download } from 'lucide-react'
+import { Settings as SettingsIcon, User, Shield, Database, Bell, Sun, Moon, Languages, DollarSign, Trash2, Download, Scan, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { api } from '../api'
+import type { ScanFinding, ScanImportResult } from '../api'
 import { useTheme } from '../lib/use-theme'
 import { Card, Button, Select } from '../components/ui'
 
@@ -121,10 +122,122 @@ function NotificationSettings() {
 }
 
 function DataSettings() {
+  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'confirm' | 'importing' | 'done'>('idle')
+  const [findings, setFindings] = useState<(ScanFinding & { selected?: boolean })[]>([])
+  const [importResults, setImportResults] = useState<ScanImportResult[]>([])
+
+  const handleScan = () => {
+    setScanState('scanning')
+    api.scan.run()
+      .then(res => {
+        setFindings(res.findings.map(f => ({ ...f, selected: true })))
+        setScanState('confirm')
+      })
+      .catch(() => setScanState('idle'))
+  }
+
+  const handleImport = () => {
+    const selectedIndices = findings
+      .map((f, i) => f.selected ? i : -1)
+      .filter(i => i >= 0)
+    if (selectedIndices.length === 0) return
+    setScanState('importing')
+    api.scan.import(selectedIndices)
+      .then(res => {
+        setImportResults(res.results)
+        setScanState('done')
+      })
+      .catch(() => setScanState('confirm'))
+  }
+
+  const toggleFinding = (index: number) => {
+    setFindings(prev => prev.map((f, i) => i === index ? { ...f, selected: !f.selected } : f))
+  }
+
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">数据管理</h2>
       <div className="space-y-4">
+        {/* Scan Local Config */}
+        <div className="border border-slate-100 dark:border-slate-800 rounded-xl p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Scan className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+            <div>
+              <p className="font-medium text-sm text-slate-800 dark:text-slate-200">扫描本地配置</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">自动检测 Claude Code、DeepSeek、Kimi 等工具的 API Key</p>
+            </div>
+          </div>
+
+          {scanState === 'idle' && (
+            <Button onClick={handleScan}><Scan className="w-4 h-4" /> 开始扫描</Button>
+          )}
+
+          {scanState === 'scanning' && (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+              扫描中...
+            </div>
+          )}
+
+          {scanState === 'confirm' && findings.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-600 dark:text-slate-400">发现 {findings.length} 个配置：</p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {findings.map((f, i) => (
+                  <label key={i} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 cursor-pointer">
+                    <input type="checkbox" checked={f.selected} onChange={() => toggleFinding(i)}
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{f.name}</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{f.masked_key}</p>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">{f.source}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleImport} size="sm">导入选中项</Button>
+                <Button variant="secondary" size="sm" onClick={() => setScanState('idle')}>取消</Button>
+              </div>
+            </div>
+          )}
+
+          {scanState === 'confirm' && findings.length === 0 && (
+            <div className="text-sm text-slate-500 dark:text-slate-400">
+              <AlertCircle className="w-4 h-4 inline mr-1" />
+              未发现本地 API Key 配置
+              <Button variant="secondary" size="sm" className="ml-2" onClick={() => setScanState('idle')}>返回</Button>
+            </div>
+          )}
+
+          {scanState === 'importing' && (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+              导入中...
+            </div>
+          )}
+
+          {scanState === 'done' && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">导入完成：</p>
+              <div className="space-y-1.5">
+                {importResults.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    {r.status === 'created' && <CheckCircle className="w-4 h-4 text-emerald-500" />}
+                    {r.status === 'skipped' && <AlertCircle className="w-4 h-4 text-amber-500" />}
+                    {r.status === 'error' && <XCircle className="w-4 h-4 text-red-500" />}
+                    <span className="text-slate-700 dark:text-slate-300">{r.name}</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">
+                      {r.status === 'created' ? '已导入' : r.status === 'skipped' ? '已跳过' : r.message}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => { setScanState('idle'); setFindings([]); setImportResults([]) }}>完成</Button>
+            </div>
+          )}
+        </div>
+
         <SettingRow icon={Download} label="导出数据" description="导出所有用量记录为 CSV">
           <Button onClick={() => api.export.csv().catch(console.error)}><Download className="w-4 h-4" /> 导出</Button>
         </SettingRow>

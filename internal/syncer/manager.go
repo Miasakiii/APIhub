@@ -102,6 +102,7 @@ func (m *Manager) SyncProvider(ctx context.Context, providerID string, from, to 
 				log.Printf("fetch balance %s: %v", key.ID, err)
 			} else {
 				m.updateBalance(key.ID, balance)
+				m.upsertSubscription(providerID, balance)
 			}
 		}
 
@@ -134,10 +135,10 @@ func (m *Manager) importRecords(records []Record, apiKeyID, providerID string) e
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO usage_records (id, api_key_id, provider_id, model,
+		INSERT INTO usage_records (id, api_key_id, provider_id, model, agent_id,
 			input_tokens, output_tokens, cache_read, cache_create,
 			cost_usd, source, timestamp, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, 'syncer', ?, CURRENT_TIMESTAMP)
+		VALUES (?, ?, ?, ?, '', ?, ?, 0, 0, ?, 'syncer', ?, CURRENT_TIMESTAMP)
 		ON CONFLICT DO NOTHING
 	`)
 	if err != nil {
@@ -189,9 +190,9 @@ func upsertDailyStats(tx *sql.Tx, records []Record, providerID string) error {
 	}
 
 	stmt, err := tx.Prepare(`
-			INSERT INTO daily_stats (id, provider_id, model, source, date,
+			INSERT INTO daily_stats (id, provider_id, model, source, agent_id, date,
 				request_count, input_tokens, output_tokens, cache_read, cache_create, cost_usd, updated_at)
-			VALUES (?, ?, ?, 'syncer', ?, ?, ?, ?, 0, 0, ?, CURRENT_TIMESTAMP)
+			VALUES (?, ?, ?, 'syncer', '', ?, ?, ?, ?, 0, 0, ?, CURRENT_TIMESTAMP)
 			ON CONFLICT(provider_id, model, source, date)
 			DO UPDATE SET
 				request_count = daily_stats.request_count + excluded.request_count,
@@ -243,6 +244,53 @@ func (m *Manager) updateBalance(keyID string, b *BalanceInfo) {
 	_, _ = m.db.Exec(
 		"UPDATE api_keys SET balance_usd = ?, last_checked = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 		b.Available, keyID)
+}
+
+// upsertSubscription creates or updates an auto-detected subscription for a provider.
+func (m *Manager) upsertSubscription(providerID string, b *BalanceInfo) {
+	if b.Total <= 0 {
+		return // No quota info available
+	}
+
+	// Get provider name for plan_name
+	var planName string
+	if err := m.db.QueryRow("SELECT name FROM providers WHERE id = ?", providerID).Scan(&planName); err != nil {
+		planName = providerID
+	}
+
+	currency := b.Currency
+	if currency == "" {
+		currency = "USD"
+	}
+	quotaUsed := b.Total - b.Available
+	if quotaUsed < 0 {
+		quotaUsed = 0
+	}
+
+	// Try to find existing auto subscription
+	var existingID string
+	err := m.db.QueryRow(
+		"SELECT id FROM subscriptions WHERE provider_id = ? AND source = 'auto' LIMIT 1",
+		providerID,
+	).Scan(&existingID)
+
+	if err == nil {
+		// Update existing
+		_, _ = m.db.Exec(`
+			UPDATE subscriptions
+			SET plan_name=?, currency=?, quota_total=?, quota_used=?, updated_at=CURRENT_TIMESTAMP
+			WHERE id=?
+		`, planName, currency, b.Total, quotaUsed, existingID)
+		return
+	}
+
+	// Create new
+	id := generateID()
+	_, _ = m.db.Exec(`
+		INSERT INTO subscriptions (id, provider_id, plan_name, currency, billing_cycle,
+			quota_type, quota_total, quota_used, status, source)
+		VALUES (?, ?, ?, ?, 'pay-as-go', 'credits', ?, ?, 'active', 'auto')
+	`, id, providerID, planName, currency, b.Total, quotaUsed)
 }
 
 func generateID() string {

@@ -17,7 +17,7 @@ It aggregates data from three sources:
 
 ## Current Status
 
-> Snapshot: **v0.3 stable**, updated 2026-05-27.
+> Snapshot: **v0.11 stable**, updated 2026-06-19.
 
 APIHub has a real backend, database schema, auth flow, scheduler, sync paths, and a polished React dashboard with dark mode support. Docker serves the frontend in a single container — `docker-compose up --build` is sufficient to run the full UI.
 
@@ -30,14 +30,17 @@ Latest local verification:
 
 | Check | Result |
 |---|---|
-| `npm.cmd run build` in `frontend/` | ✅ Pass |
+| `npm.cmd run build` in `frontend/` | ✅ Pass (code-split, no chunk warning) |
 | `npm.cmd run lint` in `frontend/` | ✅ Pass (0 errors, 0 warnings) |
 | `go test ./internal/...` | ✅ Pass |
+| `go vet ./internal/...` | ✅ Pass |
 
-P0 stabilization, P1 feature expansion, and P2 UI refactoring are all complete. See [ROADMAP.md](ROADMAP.md) for P3+ plans.
+v0.4 adds react-router with route-level code splitting, and refactors the backend to a consistent repo→service→handler architecture. See [ROADMAP.md](ROADMAP.md) for P3+ plans.
 
 ## Features
 
+- **Client-side routing**: react-router with URL-based navigation, browser history, and deep linking
+- **Code splitting**: route-level lazy loading — each page is a separate chunk, only loaded when visited
 - **Dark mode**: full dark/light theme toggle with localStorage persistence
 - **Polished UI**: Modal dialogs, Toast notifications, Tabs, loading skeletons, page transitions
 - **Multi-provider API key management** with AES-256-GCM encryption
@@ -59,13 +62,21 @@ P0 stabilization, P1 feature expansion, and P2 UI refactoring are all complete. 
 - **Webhook 通知**: 告警触发时自动发送 Webhook 通知
 - **Docker**: single-container deployment with static frontend serving + SPA fallback
 - **SQLite-backed**, local-first, low external dependency surface
+- **Model pricing table**: 35+ built-in model prices with auto cost backfill when source reports $0
+- **Incremental DB migrations**: versioned schema via `PRAGMA user_version`, auto-upgrade on startup
+- **Three-layer aggregation**: sessions (30-min window) → hourly buckets → daily rollups
+- **Session analysis page**: hourly activity chart, session list with filtering and pagination
+- **Local config auto-scan**: detects API keys from Claude Code, DeepSeek, Kimi Code, Codex configs and environment variables
+- **Subscription auto-detection**: syncer FetchBalance automatically creates/updates subscription records
+- **Subscription expiry alerts**: alerts when subscriptions are expiring within 7 days
+- **Agent dimension tracking**: per-agent cost tracking with agents table and agent_id across all usage tables
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Backend | Go 1.26, Gin, `database/sql` + `modernc.org/sqlite` |
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, Recharts |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, Recharts, React Router |
 | UI | Custom component library with dark mode, Toast system, Modal dialogs |
 | Crypto | HKDF-SHA256 key derivation, AES-256-GCM encryption |
 
@@ -184,14 +195,19 @@ Details: [docs/SECURITY.md](docs/SECURITY.md) · Roadmap: [ROADMAP.md](ROADMAP.m
 ```
 cmd/apihub/              # Entry point
 internal/
-  api/                   # HTTP handlers (providers, keys, usage, stats, alerts, subscriptions, frequency, export, auth)
+  api/                   # HTTP handlers (route registration + request/response)
+  repository/            # Data access layer (SQL queries, scanning)
+  service/               # Business logic layer (validation, orchestration)
+  model/                 # Domain models (Provider, APIKey, UsageRecord, etc.)
   aggregator/            # Single-goroutine daily_stats updater
   alert/                 # Alert engine (balance_low, key_expired, abnormal_frequency)
   crypto/                # HKDF key derivation + AES-256-GCM
   db/                    # SQLite + WAL + schema migrations
-  model/                 # Domain models
+  scanner/               # Local config scanner (env vars + config files)
+  scheduler/             # Background job scheduler
+  sync/                  # cc-switch sync logic
   syncer/                # Syncer interface + Manager
-    providers/           # OpenRouter, one-api, new-api implementations
+    providers/           # OpenRouter, OpenAI, Anthropic, one-api, new-api implementations
 sources/
   ccswitch/              # cc-switch.db reader
   jsonl/                 # Incremental JSONL parser + sync
@@ -201,35 +217,37 @@ sources/
 
 ```
 frontend/src/
-  App.tsx                # Root with ThemeProvider + ToastProvider
+  App.tsx                # BrowserRouter + Routes with React.lazy code splitting
+  api.ts                 # API client
   lib/
     theme.tsx            # ThemeProvider (dark/light toggle)
     use-theme.ts         # useTheme hook
     use-toast.ts         # useToast hook
-    nav.ts               # Navigation constants
+    nav.ts               # Navigation items with route paths
     utils.ts             # cn(), formatUSD(), formatNum()
     auth.ts              # Token management
   components/
     layout/
-      Sidebar.tsx        # Sidebar with dark mode toggle
-      TopBar.tsx         # Top header bar
+      Sidebar.tsx        # Sidebar with NavLink navigation
+      TopBar.tsx         # Top header bar (label from useLocation)
     ui/
       index.tsx          # Card, Button, Input, Badge, StatCard, etc.
       Modal.tsx          # Unified modal dialog
       Toast.tsx          # Toast notification provider
       Tabs.tsx           # Tab switcher
-  pages/
-    Dashboard.tsx        # Overview with charts
-    Providers.tsx        # Provider management
-    Keys.tsx             # API key management
-    UsageLog.tsx         # Paginated usage table
-    Alerts.tsx           # Alert rules + history
-    Subscriptions.tsx    # Subscription tracking
-    Frequency.tsx        # Hourly heatmap
-    Playground.tsx       # API testing
-    Settings.tsx         # App settings
-    Login.tsx            # Auth login/register
-    ModelDetail.tsx      # Model cost & usage detail page
+  pages/                 # Route-level lazy-loaded pages
+    Dashboard.tsx        # / — Overview with charts
+    ModelDetail.tsx      # /model/:model — Model cost & usage detail
+    Providers.tsx        # /providers — Provider management
+    Keys.tsx             # /keys — API key management
+    UsageLog.tsx         # /usage — Paginated usage table
+    Alerts.tsx           # /alerts — Alert rules + history
+    Subscriptions.tsx    # /subscriptions — Subscription tracking
+    Frequency.tsx        # /frequency — Hourly heatmap
+    Playground.tsx       # /playground — API testing
+    Sessions.tsx         # /sessions — Session analysis with hourly chart
+    Settings.tsx         # /settings — App settings
+    Login.tsx            # Auth login/register (not routed)
 ```
 
 ## API Endpoints (v1)
@@ -299,6 +317,29 @@ frontend/src/
 | GET | `/api/v1/frequency/today` | Today's hourly distribution |
 | GET | `/api/v1/export/csv` | Export usage as CSV |
 
+### Sessions
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/sessions` | Paginated session list (filterable by provider, model, source, date range) |
+| GET | `/api/v1/sessions/stats` | Aggregate session statistics |
+| GET | `/api/v1/sessions/buckets` | Activity bucket list |
+| GET | `/api/v1/sessions/hourly` | 24-hour bucket distribution for a date |
+
+### Scan
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/scan` | Scan local configs for API keys (returns masked results) |
+| POST | `/api/v1/scan/import` | Import selected findings by index (re-scans internally) |
+
+### Agents
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/agents` | List all agents |
+| POST | `/api/v1/agents` | Create agent |
+| GET | `/api/v1/agents/:id` | Get agent by ID |
+| PUT | `/api/v1/agents/:id` | Update agent |
+| DELETE | `/api/v1/agents/:id` | Delete agent |
+
 ### Playground
 | Method | Path | Description |
 |--------|------|-------------|
@@ -336,9 +377,15 @@ APIHub 是一个本地优先的个人 API 用量监控仪表盘，用于追踪�
 
 ### 当前状态
 
-> 快照：**v0.3 stable**，更新于 2026-05-27。
+> 快照：**v0.11 stable**，更新于 2026-06-19。
 
-P0 稳定化、P1 功能扩展、P2 UI 重构全部完成，可作为稳定的本地部署版本使用。支持完整暗色主题。
+v0.11 完成 Agent 维度追踪：新增 agents 表，所有用量表添加 agent_id 字段，前端新增 Agent 管理页面。
+
+v0.10 完成订阅自动检测：syncer 的 FetchBalance 成功后自动创建/更新订阅记录，告警引擎实现订阅到期检测，前端显示自动标记。
+
+v0.9 完成本地配置自动扫描：启动时检测 Claude Code、DeepSeek、Kimi Code、Codex 等工具的 API Key，前端提供一键导入 UI。
+
+v0.8 完成三层用量聚合：usage_sessions（会话粒度，30 分钟窗口）+ usage_activity_buckets（小时粒度）+ daily_stats（天粒度），前端新增会话分析页面。
 
 推荐运行方式：
 
@@ -377,7 +424,7 @@ npm run dev
 | 层级 | 技术 |
 |---|---|
 | 后端 | Go 1.26, Gin, database/sql + modernc.org/sqlite |
-| 前端 | React 19, TypeScript, Vite, Tailwind CSS v4, Recharts |
+| 前端 | React 19, TypeScript, Vite, Tailwind CSS v4, Recharts, React Router |
 | UI | 自研组件库，支持暗色主题、Toast 通知、Modal 对话框 |
 | 加密 | HKDF-SHA256 密钥派生, AES-256-GCM 加密 |
 

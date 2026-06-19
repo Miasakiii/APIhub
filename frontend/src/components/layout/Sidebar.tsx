@@ -1,33 +1,36 @@
+import { NavLink } from 'react-router-dom'
 import { X, Sparkles, Moon, Sun } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useTheme } from '../../lib/use-theme'
 import { navMain, navMore, navBottom } from '../../lib/nav'
 
 interface SidebarProps {
-  page: string
-  setPage: (p: string) => void
   open: boolean
   onClose: () => void
 }
 
-export function Sidebar({ page, setPage, open, onClose }: SidebarProps) {
+export function Sidebar({ open, onClose }: SidebarProps) {
   const { theme, toggle } = useTheme()
 
-  function NavItem({ id, label, icon: Icon }: { id: string; label: string; icon: React.ComponentType<{ className?: string }> }) {
-    const active = page === id
+  function NavItem({ path, label, icon: Icon }: { path: string; label: string; icon: React.ComponentType<{ className?: string }> }) {
     return (
-      <button
-        type="button"
-        onClick={() => { setPage(id); onClose() }}
-        className={cn(
+      <NavLink
+        to={path}
+        end={path === '/'}
+        onClick={onClose}
+        className={({ isActive }) => cn(
           'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative group',
-          active ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5',
+          isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5',
         )}
       >
-        {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-gradient-to-b from-indigo-400 to-violet-400" />}
-        <Icon className={cn('w-[18px] h-[18px] shrink-0', active ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300')} />
-        <span>{label}</span>
-      </button>
+        {({ isActive }) => (
+          <>
+            {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-gradient-to-b from-indigo-400 to-violet-400" />}
+            <Icon className={cn('w-[18px] h-[18px] shrink-0', isActive ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300')} />
+            <span>{label}</span>
+          </>
+        )}
+      </NavLink>
     )
   }
 
@@ -70,7 +73,7 @@ export function Sidebar({ page, setPage, open, onClose }: SidebarProps) {
             {theme === 'dark' ? <Sun className="w-[18px] h-[18px] text-slate-500" /> : <Moon className="w-[18px] h-[18px] text-slate-500" />}
             <span>{theme === 'dark' ? '亮色模式' : '暗色模式'}</span>
           </button>
-          <div className="px-3 pt-2"><p className="text-[10px] text-slate-600">APIHub v0.2</p></div>
+          <div className="px-3 pt-2"><p className="text-[10px] text-slate-600">APIHub v0.4</p></div>
         </div>
       </aside>
     </>

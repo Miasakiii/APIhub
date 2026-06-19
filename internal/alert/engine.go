@@ -188,7 +188,42 @@ func (e *Engine) checkAbnormalFrequency(rule model.Alert) error {
 
 // checkSubscriptionExpiring checks if any subscription is about to expire.
 func (e *Engine) checkSubscriptionExpiring(rule model.Alert) error {
-	// subscription table not yet created, skip for now
+	withinDays := int(rule.Threshold)
+	if withinDays <= 0 {
+		withinDays = 7 // default: 7 days
+	}
+
+	query := `
+		SELECT s.id, s.plan_name, s.renew_date, COALESCE(p.name, s.provider_id)
+		FROM subscriptions s
+		LEFT JOIN providers p ON s.provider_id = p.id
+		WHERE s.status = 'active' AND s.renew_date IS NOT NULL
+		  AND s.renew_date <= date('now', '+' || ? || ' days')
+		  AND s.renew_date >= date('now')
+	`
+	var args []any
+	if rule.ProviderID != "" {
+		query += " AND s.provider_id = ?"
+		args = []any{withinDays, rule.ProviderID}
+	} else {
+		args = []any{withinDays}
+	}
+
+	rows, err := e.db.Query(query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var subID, planName, renewDate, providerName string
+		if err := rows.Scan(&subID, &planName, &renewDate, &providerName); err != nil {
+			continue
+		}
+		msg := fmt.Sprintf("订阅 %s (%s) 将于 %s 到期", planName, providerName, renewDate)
+		_ = e.createHistory(rule.ID, msg, "warning")
+		e.notify("warning", "订阅即将到期", msg)
+	}
 	return nil
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, DollarSign, BarChart3, Activity, Calendar, Layers, Clock } from 'lucide-react'
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -9,12 +10,9 @@ import type { DailyStats, UsageRecord } from '../api'
 import { formatUSD, formatNum } from '../lib/utils'
 import { PageHeader, Button, Card, CardHeader, StatCard, Badge, Skeleton } from '../components/ui'
 
-interface Props {
-  model: string
-  onBack: () => void
-}
-
-export function ModelDetail({ model, onBack }: Props) {
+export function ModelDetail() {
+  const { model = '' } = useParams<{ model: string }>()
+  const navigate = useNavigate()
   const [daily, setDaily] = useState<DailyStats[]>([])
   const [records, setRecords] = useState<UsageRecord[]>([])
   const [total, setTotal] = useState(0)
@@ -66,7 +64,7 @@ export function ModelDetail({ model, onBack }: Props) {
         title={model}
         description="模型用量详情"
         actions={
-          <Button variant="secondary" onClick={onBack}>
+          <Button variant="secondary" onClick={() => navigate('/')}>
             <ArrowLeft className="w-4 h-4" /> 返回总览
           </Button>
         }

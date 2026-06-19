@@ -17,6 +17,7 @@ type Subscription struct {
 	RenewDate    *time.Time `json:"renew_date,omitempty"`
 	AutoRenew    bool       `json:"auto_renew"`
 	Status       string     `json:"status"` // active | expired | cancelled | paused
+	Source       string     `json:"source"`  // manual | auto
 	Notes        string     `json:"notes,omitempty"`
 	CreatedAt    time.Time  `json:"created_at,omitempty"`
 	UpdatedAt    time.Time  `json:"updated_at,omitempty"`

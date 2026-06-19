@@ -3,11 +3,17 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	_ "modernc.org/sqlite"
+)
+
+const (
+	// currentVersion is the target schema version. Bump this when adding new migrations.
+	currentVersion = 5
 )
 
 // DB wraps the APIHub SQLite connection.
@@ -21,14 +27,12 @@ func Open(dbPath string) (*DB, error) {
 		return nil, err
 	}
 
-	// Use a different driver name suffix by adding _busy_timeout
 	uri := fmt.Sprintf("file:%s?_busy_timeout=5000", filepath.ToSlash(dbPath))
 	d, err := sql.Open("sqlite", uri)
 	if err != nil {
 		return nil, fmt.Errorf("open apihub db: %w", err)
 	}
 
-	// Enable WAL mode
 	if _, err := d.Exec("PRAGMA journal_mode=WAL"); err != nil {
 		return nil, fmt.Errorf("enable WAL: %w", err)
 	}
@@ -48,9 +52,79 @@ func (d *DB) columnExists(table, column string) bool {
 	return count > 0
 }
 
-// Migrate runs all schema migrations.
+// getVersion reads the current schema version from PRAGMA user_version.
+func (d *DB) getVersion() (int, error) {
+	var v int
+	err := d.QueryRow("PRAGMA user_version").Scan(&v)
+	return v, err
+}
+
+// setVersion writes the schema version via PRAGMA user_version.
+func (d *DB) setVersion(v int) error {
+	_, err := d.Exec(fmt.Sprintf("PRAGMA user_version=%d", v))
+	return err
+}
+
+// Migrate runs incremental schema migrations based on PRAGMA user_version.
+// Each migration step is versioned and idempotent. Upgrading from any prior
+// version to currentVersion is supported.
 func (d *DB) Migrate() error {
-	migrations := []string{
+	version, err := d.getVersion()
+	if err != nil {
+		return fmt.Errorf("migrate: read version: %w", err)
+	}
+
+	if version >= currentVersion {
+		log.Printf("[db] schema version %d (up to date)", version)
+		return nil
+	}
+
+	log.Printf("[db] schema version %d → %d, running migrations...", version, currentVersion)
+
+	// Define migration steps. Each step migrates from version N to N+1.
+	// The index is the target version (step[1] migrates 0→1, step[2] migrates 1→2, etc.)
+	migrations := map[int]func(tx *sql.Tx) error{
+		1: migrateV1,
+		2: migrateV2,
+		3: migrateV3,
+		4: migrateV4,
+		5: migrateV5,
+	}
+
+	for v := version + 1; v <= currentVersion; v++ {
+		fn, ok := migrations[v]
+		if !ok {
+			return fmt.Errorf("migrate: no migration defined for version %d", v)
+		}
+
+		tx, err := d.Begin()
+		if err != nil {
+			return fmt.Errorf("migrate: begin tx for v%d: %w", v, err)
+		}
+
+		if err := fn(tx); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("migrate: v%d failed: %w", v, err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("migrate: commit v%d: %w", v, err)
+		}
+
+		// Update version after successful commit
+		if err := d.setVersion(v); err != nil {
+			return fmt.Errorf("migrate: set version to %d: %w", v, err)
+		}
+
+		log.Printf("[db] ✓ migrated to v%d", v)
+	}
+
+	return nil
+}
+
+// migrateV1 creates the base schema (equivalent to the original flat migrations).
+func migrateV1(tx *sql.Tx) error {
+	stmts := []string{
 		// Providers
 		`CREATE TABLE IF NOT EXISTS providers (
 			id TEXT PRIMARY KEY,
@@ -131,7 +205,6 @@ func (d *DB) Migrate() error {
 			duration_ms INTEGER DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
-		// Indexes
 		// Alerts
 		`CREATE TABLE IF NOT EXISTS alerts (
 			id TEXT PRIMARY KEY,
@@ -188,6 +261,7 @@ func (d *DB) Migrate() error {
 			level TEXT NOT NULL DEFAULT 'warning',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
+		// Indexes
 		`CREATE INDEX IF NOT EXISTS idx_usage_provider ON usage_records(provider_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_usage_model ON usage_records(model)`,
 		`CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_records(timestamp)`,
@@ -195,17 +269,43 @@ func (d *DB) Migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_daily_provider ON daily_stats(provider_id)`,
 	}
 
-	for _, ddl := range migrations {
-		if _, err := d.Exec(ddl); err != nil {
-			return fmt.Errorf("migrate: %s: %w", truncate(ddl, 60), err)
+	for _, ddl := range stmts {
+		if _, err := tx.Exec(ddl); err != nil {
+			return fmt.Errorf("%s: %w", truncate(ddl, 60), err)
 		}
 	}
 
-	// Idempotent migrations (ALTER TABLE)
-	if !d.columnExists("providers", "syncer") {
-		if _, err := d.Exec("ALTER TABLE providers ADD COLUMN syncer TEXT DEFAULT ''"); err != nil {
-			return fmt.Errorf("migrate: add syncer column: %w", err)
+	// Idempotent ALTER TABLE: add syncer column to providers if missing
+	if _, err := tx.Exec("ALTER TABLE providers ADD COLUMN syncer TEXT DEFAULT ''"); err != nil {
+		// Column already exists is fine (SQLite error code 1: duplicate column)
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add syncer column: %w", err)
 		}
+	}
+
+	return nil
+}
+
+// migrateV2 adds the model_pricing table with seed data.
+func migrateV2(tx *sql.Tx) error {
+	// Create model_pricing table
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS model_pricing (
+		model_id TEXT PRIMARY KEY,
+		display_name TEXT NOT NULL,
+		input_cost_per_million REAL NOT NULL DEFAULT 0,
+		output_cost_per_million REAL NOT NULL DEFAULT 0,
+		cache_read_cost_per_million REAL NOT NULL DEFAULT 0,
+		cache_creation_cost_per_million REAL NOT NULL DEFAULT 0,
+		is_custom INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`); err != nil {
+		return fmt.Errorf("create model_pricing: %w", err)
+	}
+
+	// Seed with default pricing data
+	if err := seedModelPricing(tx); err != nil {
+		return fmt.Errorf("seed model_pricing: %w", err)
 	}
 
 	return nil
@@ -217,4 +317,102 @@ func truncate(s string, n int) string {
 		return s[:n] + "..."
 	}
 	return s
+}
+
+// migrateV3 adds usage_sessions and usage_activity_buckets tables for three-layer aggregation.
+func migrateV3(tx *sql.Tx) error {
+	stmts := []string{
+		// Sessions: consecutive API calls grouped by (provider, model, source) within a 30-min window.
+		`CREATE TABLE IF NOT EXISTS usage_sessions (
+			id TEXT PRIMARY KEY,
+			provider_id TEXT NOT NULL,
+			model TEXT NOT NULL,
+			source TEXT NOT NULL,
+			started_at DATETIME NOT NULL,
+			ended_at DATETIME NOT NULL,
+			duration_ms INTEGER NOT NULL DEFAULT 0,
+			request_count INTEGER NOT NULL DEFAULT 0,
+			input_tokens INTEGER NOT NULL DEFAULT 0,
+			output_tokens INTEGER NOT NULL DEFAULT 0,
+			cache_read INTEGER NOT NULL DEFAULT 0,
+			cache_create INTEGER NOT NULL DEFAULT 0,
+			cost_usd REAL NOT NULL DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_started ON usage_sessions(started_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_model ON usage_sessions(model)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_provider ON usage_sessions(provider_id)`,
+
+		// Activity buckets: hourly aggregation per provider+model.
+		`CREATE TABLE IF NOT EXISTS usage_activity_buckets (
+			id TEXT PRIMARY KEY,
+			bucket_start DATETIME NOT NULL,
+			provider_id TEXT NOT NULL,
+			model TEXT NOT NULL,
+			request_count INTEGER NOT NULL DEFAULT 0,
+			input_tokens INTEGER NOT NULL DEFAULT 0,
+			output_tokens INTEGER NOT NULL DEFAULT 0,
+			cache_read INTEGER NOT NULL DEFAULT 0,
+			cache_create INTEGER NOT NULL DEFAULT 0,
+			cost_usd REAL NOT NULL DEFAULT 0,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(bucket_start, provider_id, model)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_buckets_start ON usage_activity_buckets(bucket_start)`,
+		`CREATE INDEX IF NOT EXISTS idx_buckets_provider ON usage_activity_buckets(provider_id)`,
+	}
+
+	for _, ddl := range stmts {
+		if _, err := tx.Exec(ddl); err != nil {
+			return fmt.Errorf("%s: %w", truncate(ddl, 60), err)
+		}
+	}
+	return nil
+}
+
+func migrateV4(tx *sql.Tx) error {
+	// Add source column to subscriptions for auto-detection tracking.
+	_, err := tx.Exec(`ALTER TABLE subscriptions ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`)
+	if err != nil {
+		// Column may already exist from a previous partial migration
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return err
+		}
+	}
+	return nil
+}
+
+func migrateV5(tx *sql.Tx) error {
+	stmts := []string{
+		// Agents table
+		`CREATE TABLE IF NOT EXISTS agents (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			type TEXT NOT NULL DEFAULT 'cli',
+			icon TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+
+		// Add agent_id column to usage tables
+		`ALTER TABLE usage_records ADD COLUMN agent_id TEXT DEFAULT ''`,
+		`ALTER TABLE daily_stats ADD COLUMN agent_id TEXT DEFAULT ''`,
+		`ALTER TABLE usage_sessions ADD COLUMN agent_id TEXT DEFAULT ''`,
+		`ALTER TABLE usage_activity_buckets ADD COLUMN agent_id TEXT DEFAULT ''`,
+
+		// Index for agent_id filtering
+		`CREATE INDEX IF NOT EXISTS idx_usage_records_agent ON usage_records(agent_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_daily_stats_agent ON daily_stats(agent_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON usage_sessions(agent_id)`,
+	}
+
+	for _, ddl := range stmts {
+		if _, err := tx.Exec(ddl); err != nil {
+			if strings.Contains(err.Error(), "duplicate column") {
+				continue
+			}
+			return fmt.Errorf("%s: %w", truncate(ddl, 60), err)
+		}
+	}
+	return nil
 }

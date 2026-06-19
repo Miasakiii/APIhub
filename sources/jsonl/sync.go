@@ -80,6 +80,7 @@ func syncSingleFile(db *sql.DB, calc *CostCalc, f FileMeta) SyncResult {
 				ID:           genID(),
 				ProviderID:   "claude-code",
 				Model:        r.Model,
+				AgentID:      "claude-code",
 				InputTokens:  r.InputTokens,
 				OutputTokens: r.OutputTokens,
 				CacheRead:    r.CacheRead,
