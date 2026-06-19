@@ -40,14 +40,16 @@ Test coverage (v0.14):
 
 | Package | Coverage |
 |---|---|
+| util | 100% |
 | scanner | 83.1% |
 | crypto | 76.0% |
 | db | 67.8% |
 | repository | 41.1% |
 | service | 40.0% |
+| api | 28.8% |
 | alert | 22.0% |
 | ws | 17.2% |
-| util | 100% |
+| aggregator | 11.1% |
 
 v0.14 adds desktop settings panel, notification integration, and comprehensive unit tests. See [ROADMAP.md](ROADMAP.md) for P3+ plans.
 
