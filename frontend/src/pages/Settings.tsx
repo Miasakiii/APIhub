@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { Settings as SettingsIcon, User, Shield, Database, Bell, Sun, Moon, Languages, DollarSign, Trash2, Download, Scan, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Settings as SettingsIcon, User, Shield, Database, Bell, Sun, Moon, Languages, DollarSign, Trash2, Download, Scan, CheckCircle, XCircle, AlertCircle, Monitor } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { api } from '../api'
+import { api, isWailsEnv } from '../api'
 import type { ScanFinding, ScanImportResult } from '../api'
 import { useTheme } from '../lib/use-theme'
 import { Card, Button, Select } from '../components/ui'
@@ -25,6 +25,7 @@ export function Settings({ onLogout }: SettingsProps) {
             <TabButton id="security" label="安全" icon={Shield} active={activeTab} onClick={setActiveTab} />
             <TabButton id="notifications" label="通知" icon={Bell} active={activeTab} onClick={setActiveTab} />
             <TabButton id="data" label="数据" icon={Database} active={activeTab} onClick={setActiveTab} />
+            {isWailsEnv() && <TabButton id="desktop" label="桌面端" icon={Monitor} active={activeTab} onClick={setActiveTab} />}
           </div>
           <div className="flex-1 p-6 lg:p-8">
             {activeTab === 'general' && <GeneralSettings />}
@@ -32,6 +33,7 @@ export function Settings({ onLogout }: SettingsProps) {
             {activeTab === 'security' && <SecuritySettings />}
             {activeTab === 'notifications' && <NotificationSettings />}
             {activeTab === 'data' && <DataSettings />}
+            {activeTab === 'desktop' && <DesktopSettings />}
           </div>
         </div>
       </Card>
@@ -266,6 +268,93 @@ function SettingRow({ icon: Icon, label, description, children, danger }: {
       </div>
       <div className="shrink-0">{children}</div>
     </div>
+  )
+}
+
+function DesktopSettings() {
+  const wails = window.go?.main?.WailsApp
+  const [minimizeToTray, setMinimizeToTray] = useState(false)
+  const [autoStart, setAutoStart] = useState(false)
+  const [version, setVersion] = useState('')
+  const [dataDir, setDataDir] = useState('')
+
+  useEffect(() => {
+    if (!wails) return
+    wails.GetMinimizeToTray().then(setMinimizeToTray)
+    wails.IsAutoStartEnabled().then(setAutoStart)
+    wails.GetVersion().then(setVersion)
+    wails.GetDataDir().then(setDataDir)
+  }, [])
+
+  const handleMinimizeToTray = async (enable: boolean) => {
+    await wails?.SetMinimizeToTray(enable)
+    setMinimizeToTray(enable)
+  }
+
+  const handleAutoStart = async (enable: boolean) => {
+    await wails?.SetAutoStart(enable)
+    setAutoStart(enable)
+  }
+
+  if (!wails) return null
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">桌面端设置</h3>
+
+        <div className="space-y-4">
+          {/* Minimize to tray */}
+          <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+            <div>
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">关闭时最小化</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">关闭窗口时最小化到任务栏而非退出应用</p>
+            </div>
+            <ControlledToggle checked={minimizeToTray} onChange={handleMinimizeToTray} />
+          </div>
+
+          {/* Auto-start */}
+          <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+            <div>
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">开机自启</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">系统启动时自动运行 APIHub</p>
+            </div>
+            <ControlledToggle checked={autoStart} onChange={handleAutoStart} />
+          </div>
+
+          {/* Version */}
+          <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+            <div>
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">版本</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">当前应用版本号</p>
+            </div>
+            <span className="text-sm font-mono text-slate-600 dark:text-slate-300">{version}</span>
+          </div>
+
+          {/* Data directory */}
+          <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+            <div>
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">数据目录</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">数据库和配置文件存储位置</p>
+            </div>
+            <span className="text-xs font-mono text-slate-500 dark:text-slate-400 max-w-[200px] truncate" title={dataDir}>{dataDir}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ControlledToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
+      className={cn('relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+        checked ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'
+      )}>
+      <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+        checked ? 'translate-x-6' : 'translate-x-1'
+      )} />
+    </button>
   )
 }
 

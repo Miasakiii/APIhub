@@ -114,6 +114,16 @@ function AppShell() {
       })
   }, [])
 
+  // Wails native notification listener
+  useEffect(() => {
+    if (!isWailsEnv()) return
+    window.runtime?.EventsOn('notification', (data: { title: string; message: string }) => {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(data.title, { body: data.message })
+      }
+    })
+  }, [])
+
   if (authEnabled === null) {
     return (
       <div className="min-h-screen flex items-center justify-center app-shell-bg">

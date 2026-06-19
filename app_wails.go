@@ -49,7 +49,12 @@ func NewWailsApp() *WailsApp {
 func (a *WailsApp) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.initBackend()
-	a.setupSystemTray()
+}
+
+// domReady is called when the DOM is ready.
+func (a *WailsApp) domReady(ctx context.Context) {
+	// Request notification permission
+	runtime.WindowExecJS(ctx, `if('Notification' in window && Notification.permission==='default')Notification.requestPermission()`)
 }
 
 // shutdown is called when the Wails app shuts down.
@@ -203,13 +208,17 @@ func (a *WailsApp) OpenExternalURL(url string) {
 
 // GetVersion returns the application version.
 func (a *WailsApp) GetVersion() string {
-	return "0.13.0"
+	return "0.14.0"
 }
 
-// setupSystemTray initializes the system tray with menu items.
-func (a *WailsApp) setupSystemTray() {
-	// System tray is handled by Wails runtime on supported platforms
-	// The tray menu items are configured in main_wails.go
+// onBeforeClose is called when the user tries to close the window.
+// Returns true to prevent close (minimize to taskbar instead).
+func (a *WailsApp) onBeforeClose() bool {
+	if a.minimizeToTray {
+		runtime.WindowMinimise(a.ctx)
+		return true // prevent close, minimize to taskbar
+	}
+	return false // allow close
 }
 
 // MinimizeToTray hides the window to system tray.

@@ -1,9 +1,13 @@
 import { clearToken, getAuthHeaders } from './lib/auth'
 
+/** Returns true if running inside a Wails desktop build */
+export function isWailsEnv(): boolean {
+  return typeof window !== 'undefined' && !!window.go?.main?.WailsApp
+}
+
 // Detect Wails desktop environment
 function getBaseURL(): string {
-  // Check if running in Wails (window.go.main.WailsApp exists)
-  if (typeof window !== 'undefined' && window.go?.main?.WailsApp) {
+  if (isWailsEnv()) {
     // In Wails mode, we need absolute URL to the local Gin server
     // This will be set asynchronously via initWailsBase()
     return '' // Will be updated after Wails init
@@ -16,7 +20,7 @@ let BASE = getBaseURL()
 
 // Initialize Wails base URL asynchronously
 async function initWailsBase() {
-  if (window.go?.main?.WailsApp) {
+  if (isWailsEnv()) {
     try {
       const url = await window.go.main.WailsApp.GetAPIURL()
       BASE = url + '/api/v1'
