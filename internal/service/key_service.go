@@ -3,6 +3,7 @@ package service
 import (
 	"apihub/internal/crypto"
 	"apihub/internal/model"
+	"apihub/internal/util"
 	"errors"
 )
 
@@ -80,7 +81,7 @@ func (s *KeyService) CreateWithSource(req CreateRequest, source string) (*Create
 		return nil, err
 	}
 
-	id := generateID()
+	id := util.GenerateID()
 	if err := s.repo.CreateWithSource(id, req.ProviderID, kh, encrypted, req.Name, source); err != nil {
 		return nil, err
 	}

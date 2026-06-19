@@ -2,9 +2,8 @@ package service
 
 import (
 	"apihub/internal/model"
-	"crypto/rand"
+	"apihub/internal/util"
 	"database/sql"
-	"encoding/hex"
 	"errors"
 )
 
@@ -49,7 +48,7 @@ func (s *ProviderService) List() ([]model.Provider, error) {
 
 // Create creates a new provider with a generated ID.
 func (s *ProviderService) Create(p model.Provider) (model.Provider, error) {
-	p.ID = generateID()
+	p.ID = util.GenerateID()
 	p.Enabled = true
 	if err := s.repo.Create(p); err != nil {
 		return p, err
@@ -97,8 +96,4 @@ func (s *ProviderService) GetDetail(id string) (*model.ProviderDetail, error) {
 	}, nil
 }
 
-func generateID() string {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return hex.EncodeToString(b)
-}
+// generateID is deprecated: use util.GenerateID() instead.

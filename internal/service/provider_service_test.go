@@ -2,6 +2,7 @@ package service
 
 import (
 	"apihub/internal/model"
+	"apihub/internal/util"
 	"errors"
 	"testing"
 )
@@ -224,8 +225,8 @@ func TestProviderService_GetDetail(t *testing.T) {
 }
 
 func TestGenerateID(t *testing.T) {
-	id1 := generateID()
-	id2 := generateID()
+	id1 := util.GenerateID()
+	id2 := util.GenerateID()
 
 	if id1 == "" {
 		t.Error("expected non-empty ID")

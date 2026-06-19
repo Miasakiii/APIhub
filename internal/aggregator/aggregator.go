@@ -2,10 +2,9 @@ package aggregator
 
 import (
 	"apihub/internal/model"
+	"apihub/internal/util"
 	"apihub/internal/ws"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"log"
 	"strings"
 	"sync"
@@ -290,7 +289,7 @@ func upsertAll(tx *sql.Tx, records []model.UsageRecord) error {
 	defer dailyStmt.Close()
 
 	for _, s := range dailyStats {
-		s.ID = generateID()
+		s.ID = util.GenerateID()
 		if _, err := dailyStmt.Exec(s.ID, s.ProviderID, s.Model, s.Source, s.AgentID, s.Date,
 			s.RequestCount, s.InputTokens, s.OutputTokens, s.CacheRead, s.CacheCreate, s.CostUSD); err != nil {
 			return err
@@ -340,7 +339,7 @@ func upsertAll(tx *sql.Tx, records []model.UsageRecord) error {
 	defer bucketStmt.Close()
 
 	for _, b := range buckets {
-		b.ID = generateID()
+		b.ID = util.GenerateID()
 		if _, err := bucketStmt.Exec(b.ID, b.BucketStart, b.ProviderID, b.Model, b.AgentID,
 			b.RequestCount, b.InputTokens, b.OutputTokens, b.CacheRead, b.CacheCreate, b.CostUSD); err != nil {
 			return err
@@ -478,7 +477,7 @@ func upsertSessions(tx *sql.Tx, records []model.UsageRecord) error {
 
 		// Create new session
 		newSess := &model.UsageSession{
-			ID:           generateID(),
+			ID:           util.GenerateID(),
 			ProviderID:   r.ProviderID,
 			Model:        r.Model,
 			Source:       r.Source,
@@ -561,11 +560,7 @@ func ImportFromCCSwitch(db *sql.DB, records []model.UsageRecord) error {
 	return tx.Commit()
 }
 
-func generateID() string {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return hex.EncodeToString(b)
-}
+// generateID is deprecated: use util.GenerateID() instead.
 
 func nullableString(s string) any {
 	if s == "" {

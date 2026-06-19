@@ -2,6 +2,7 @@ package service
 
 import (
 	"apihub/internal/model"
+	"apihub/internal/util"
 )
 
 // AlertRepository defines the interface for alert data access.
@@ -30,7 +31,7 @@ func (s *AlertService) List() ([]model.Alert, error) {
 
 // Create creates a new alert with a generated ID.
 func (s *AlertService) Create(a model.Alert) (model.Alert, error) {
-	a.ID = generateID()
+	a.ID = util.GenerateID()
 	if err := s.repo.Create(a); err != nil {
 		return a, err
 	}

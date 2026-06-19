@@ -2,10 +2,9 @@ package alert
 
 import (
 	"apihub/internal/model"
+	"apihub/internal/util"
 	"apihub/internal/ws"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"log"
 )
@@ -235,7 +234,7 @@ func (e *Engine) checkSubscriptionExpiring(rule model.Alert) error {
 }
 
 func (e *Engine) createHistory(alertID, message, level string) error {
-	id := generateID()
+	id := util.GenerateID()
 	_, err := e.db.Exec(`
 		INSERT INTO alert_history (id, alert_id, message, level, created_at)
 		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -262,8 +261,4 @@ func (e *Engine) notify(level, title, message string) {
 	}
 }
 
-func generateID() string {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return hex.EncodeToString(b)
-}
+// generateID is deprecated: use util.GenerateID() instead.

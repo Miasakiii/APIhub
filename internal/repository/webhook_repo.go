@@ -2,9 +2,8 @@ package repository
 
 import (
 	"apihub/internal/model"
-	"crypto/rand"
+	"apihub/internal/util"
 	"database/sql"
-	"encoding/hex"
 )
 
 // WebhookRepo handles webhook settings database operations.
@@ -43,7 +42,7 @@ func (r *WebhookRepo) List() ([]model.WebhookSetting, error) {
 
 // Create inserts a new webhook setting.
 func (r *WebhookRepo) Create(s model.WebhookSetting) (model.WebhookSetting, error) {
-	s.ID = generateID()
+	s.ID = util.GenerateID()
 	_, err := r.db.Exec(`
 		INSERT INTO webhook_settings (id, name, url, headers, enabled)
 		VALUES (?, ?, ?, ?, ?)
@@ -57,8 +56,4 @@ func (r *WebhookRepo) Delete(id string) error {
 	return err
 }
 
-func generateID() string {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return hex.EncodeToString(b)
-}
+// generateID is deprecated: use util.GenerateID() instead.

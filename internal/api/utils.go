@@ -1,13 +1,8 @@
 package api
 
-import (
-	"crypto/rand"
-	"encoding/hex"
-)
+import "apihub/internal/util"
 
-// generateID generates a random hex ID.
+// generateID is a convenience wrapper around util.GenerateID().
 func generateID() string {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return hex.EncodeToString(b)
+	return util.GenerateID()
 }

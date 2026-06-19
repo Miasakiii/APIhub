@@ -2,6 +2,7 @@ package service
 
 import (
 	"apihub/internal/model"
+	"apihub/internal/util"
 	"database/sql"
 	"errors"
 )
@@ -46,7 +47,7 @@ func (s *SubscriptionService) GetByID(id string) (*model.Subscription, error) {
 
 // Create creates a new subscription with a generated ID.
 func (s *SubscriptionService) Create(sub model.Subscription) (model.Subscription, error) {
-	sub.ID = generateID()
+	sub.ID = util.GenerateID()
 	if err := s.repo.Create(sub); err != nil {
 		return sub, err
 	}

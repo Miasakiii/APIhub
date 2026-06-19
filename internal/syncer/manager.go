@@ -2,11 +2,10 @@ package syncer
 
 import (
 	"apihub/internal/crypto"
+	"apihub/internal/util"
 	"apihub/internal/ws"
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
@@ -173,7 +172,7 @@ func (m *Manager) importRecords(records []Record, apiKeyID, providerID string) e
 	defer stmt.Close()
 
 	for _, r := range records {
-		id := generateID()
+		id := util.GenerateID()
 		if _, err := stmt.Exec(id, apiKeyID, providerID, r.Model,
 			r.InputTokens, r.OutputTokens, r.CostUSD, r.Date); err != nil {
 			log.Printf("insert record: %v", err)
@@ -233,7 +232,7 @@ func upsertDailyStats(tx *sql.Tx, records []Record, providerID string) error {
 		defer stmt.Close()
 
 		for k, v := range aggs {
-			id := generateID()
+			id := util.GenerateID()
 			if _, err := stmt.Exec(id, providerID, k.Model, k.Date,
 				v.requests, v.input, v.output, v.cost); err != nil {
 				log.Printf("upsert daily_stats: %v", err)
@@ -311,7 +310,7 @@ func (m *Manager) upsertSubscription(providerID string, b *BalanceInfo) {
 	}
 
 	// Create new
-	id := generateID()
+	id := util.GenerateID()
 	_, _ = m.db.Exec(`
 		INSERT INTO subscriptions (id, provider_id, plan_name, currency, billing_cycle,
 			quota_type, quota_total, quota_used, status, source)
@@ -319,8 +318,4 @@ func (m *Manager) upsertSubscription(providerID string, b *BalanceInfo) {
 	`, id, providerID, planName, currency, b.Total, quotaUsed)
 }
 
-func generateID() string {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return hex.EncodeToString(b)
-}
+// generateID is deprecated: use util.GenerateID() instead.

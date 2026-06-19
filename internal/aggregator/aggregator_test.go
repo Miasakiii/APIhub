@@ -2,13 +2,14 @@ package aggregator
 
 import (
 	"apihub/internal/model"
+	"apihub/internal/util"
 	"testing"
 	"time"
 )
 
 func TestGenerateID(t *testing.T) {
-	id1 := generateID()
-	id2 := generateID()
+	id1 := util.GenerateID()
+	id2 := util.GenerateID()
 	if id1 == id2 {
 		t.Fatal("generateID should produce unique IDs")
 	}
