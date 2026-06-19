@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"apihub/internal/crypto"
+	"apihub/internal/ws"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -18,6 +19,7 @@ type Manager struct {
 	registry *Registry
 	store    *crypto.Store
 	client   *http.Client
+	hub      *ws.Hub
 }
 
 // NewManager creates a new sync manager.
@@ -30,6 +32,11 @@ func NewManager(db *sql.DB, registry *Registry, store *crypto.Store) *Manager {
 			Timeout: 30 * time.Second,
 		},
 	}
+}
+
+// SetHub sets the WebSocket hub for real-time sync broadcasting.
+func (m *Manager) SetHub(h *ws.Hub) {
+	m.hub = h
 }
 
 // SyncProvider runs sync for a single provider's active keys.
@@ -80,7 +87,19 @@ func (m *Manager) SyncProvider(ctx context.Context, providerID string, from, to 
 		"SELECT base_url FROM providers WHERE id = ?", providerID).Scan(&baseURL)
 
 	// Sync each key
-	for _, key := range keys {
+	totalKeys := len(keys)
+	for i, key := range keys {
+		// Broadcast sync progress
+		if m.hub != nil {
+			m.hub.Broadcast(ws.NewMessage(ws.TypeSyncProgress, ws.SyncProgressData{
+				ProviderID:    providerID,
+				Status:        "running",
+				Progress:      float64(i) / float64(totalKeys),
+				ProcessedKeys: i,
+				TotalKeys:     totalKeys,
+			}))
+		}
+
 		plain, err := m.store.Decrypt(key.Encrypted)
 		if err != nil {
 			log.Printf("decrypt key %s: %v", key.ID, err)
@@ -117,6 +136,13 @@ func (m *Manager) SyncProvider(ctx context.Context, providerID string, from, to 
 				log.Printf("import records %s: %v", key.ID, err)
 			}
 		}
+	}
+
+	// Broadcast sync complete
+	if m.hub != nil {
+		m.hub.Broadcast(ws.NewMessage(ws.TypeSyncComplete, ws.SyncCompleteData{
+			ProviderID: providerID,
+		}))
 	}
 
 	return nil

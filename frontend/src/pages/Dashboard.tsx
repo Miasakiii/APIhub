@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   DollarSign, BarChart3, Activity, Bell, Zap, Download, RefreshCw,
@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import { api } from '../api'
 import { formatUSD, formatNum } from '../lib/utils'
+import { useWSMessage } from '../lib/use-ws'
 import { Button, Card, CardHeader, PageHeader, StatCard as MetricCard, Skeleton } from '../components/ui'
 
 interface Summary {
@@ -48,8 +49,9 @@ export function Dashboard() {
   const [breakdown, setBreakdown] = useState<BreakdownItem[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     Promise.all([
       api.usage.summary().catch(() => null),
       api.stats.costTrend().catch(() => []),
@@ -62,6 +64,14 @@ export function Dashboard() {
       setAlerts(a.filter((x: Alert) => x.enabled).slice(0, 3))
     }).catch((e) => console.error(e)).finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  // Real-time: refresh data when usage updates arrive (debounced 500ms)
+  useWSMessage('usage.update', () => {
+    clearTimeout(refreshTimer.current)
+    refreshTimer.current = setTimeout(fetchData, 500)
+  })
 
   if (loading) return <LoadingSkeleton />
 
@@ -85,7 +95,7 @@ export function Dashboard() {
             <Button variant="secondary" onClick={() => api.export.csv().catch(console.error)}>
               <Download className="w-4 h-4" /> 导出
             </Button>
-            <Button variant="secondary" onClick={() => window.location.reload()}>
+            <Button variant="secondary" onClick={() => { setLoading(true); fetchData() }}>
               <RefreshCw className="w-4 h-4" /> 刷新
             </Button>
           </>

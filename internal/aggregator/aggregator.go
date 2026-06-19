@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"apihub/internal/model"
+	"apihub/internal/ws"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -127,6 +128,7 @@ type Aggregator struct {
 	db    *sql.DB
 	queue chan model.UsageRecord
 	done  chan struct{}
+	hub   *ws.Hub
 }
 
 // New creates and starts the aggregator goroutine.
@@ -138,6 +140,11 @@ func New(db *sql.DB) *Aggregator {
 	}
 	go a.run()
 	return a
+}
+
+// SetHub sets the WebSocket hub for real-time usage broadcasting.
+func (a *Aggregator) SetHub(h *ws.Hub) {
+	a.hub = h
 }
 
 // Submit pushes a record into the queue (non-blocking if queue not full).
@@ -510,7 +517,26 @@ func (a *Aggregator) upsert(records []model.UsageRecord) {
 		return
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return
+	}
+
+	// Broadcast usage update to connected WebSocket clients
+	if a.hub != nil {
+		var totalInput, totalOutput int64
+		var totalCost float64
+		for _, r := range records {
+			totalInput += r.InputTokens
+			totalOutput += r.OutputTokens
+			totalCost += r.CostUSD
+		}
+		a.hub.Broadcast(ws.NewMessage(ws.TypeUsageUpdate, ws.UsageUpdateData{
+			RequestCount: len(records),
+			InputTokens:  int(totalInput),
+			OutputTokens: int(totalOutput),
+			CostUSD:      totalCost,
+		}))
+	}
 }
 
 // ImportFromCCSwitch bulk-imports usage records and updates daily_stats, buckets,

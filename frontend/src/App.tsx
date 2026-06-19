@@ -4,6 +4,10 @@ import { api, setUnauthorizedHandler } from './api'
 import { clearToken, isAuthed } from './lib/auth'
 import { ThemeProvider } from './lib/theme'
 import { ToastProvider } from './components/ui'
+import { useToast } from './lib/use-toast'
+import { WebSocketProvider } from './lib/use-ws.tsx'
+import { useWSMessage } from './lib/use-ws'
+import type { AlertData } from './lib/ws-types'
 import { Sidebar } from './components/layout/Sidebar'
 import { TopBar } from './components/layout/TopBar'
 import { Login } from './pages/Login'
@@ -33,44 +37,61 @@ function PageLoader() {
   )
 }
 
+// Listens for WebSocket alert events and shows toast notifications
+function AlertToaster() {
+  const { warning, error } = useToast()
+  useWSMessage('alert.triggered', (msg) => {
+    const data = msg.data as AlertData
+    if (data.level === 'critical') {
+      error(`🚨 ${data.title}: ${data.message}`)
+    } else {
+      warning(`⚠️ ${data.title}: ${data.message}`)
+    }
+  })
+  return null
+}
+
 function AppLayout({ onLogout, authEnabled }: { onLogout?: () => void; authEnabled: boolean }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
 
   return (
-    <div className="flex h-screen overflow-hidden app-shell-bg">
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    <WebSocketProvider>
+      <AlertToaster />
+      <div className="flex h-screen overflow-hidden app-shell-bg">
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar
-          authEnabled={authEnabled}
-          onLogout={onLogout}
-          onMenuOpen={() => setSidebarOpen(true)}
-        />
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <TopBar
+            authEnabled={authEnabled}
+            onLogout={onLogout}
+            onMenuOpen={() => setSidebarOpen(true)}
+          />
 
-        <div className="flex-1 overflow-auto p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto page-enter" key={location.pathname}>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/model/:model" element={<ModelDetail />} />
-                <Route path="/providers" element={<Providers />} />
-                <Route path="/keys" element={<Keys />} />
-                <Route path="/usage" element={<UsageLog />} />
-                <Route path="/alerts" element={<Alerts />} />
-                <Route path="/subscriptions" element={<Subscriptions />} />
-                <Route path="/frequency" element={<Frequency />} />
-                <Route path="/sessions" element={<Sessions />} />
-                <Route path="/agents" element={<Agents />} />
-                <Route path="/playground" element={<Playground />} />
-                <Route path="/settings" element={<SettingsPage onLogout={authEnabled ? onLogout : undefined} />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
+          <div className="flex-1 overflow-auto p-4 lg:p-8">
+            <div className="max-w-7xl mx-auto page-enter" key={location.pathname}>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/model/:model" element={<ModelDetail />} />
+                  <Route path="/providers" element={<Providers />} />
+                  <Route path="/keys" element={<Keys />} />
+                  <Route path="/usage" element={<UsageLog />} />
+                  <Route path="/alerts" element={<Alerts />} />
+                  <Route path="/subscriptions" element={<Subscriptions />} />
+                  <Route path="/frequency" element={<Frequency />} />
+                  <Route path="/sessions" element={<Sessions />} />
+                  <Route path="/agents" element={<Agents />} />
+                  <Route path="/playground" element={<Playground />} />
+                  <Route path="/settings" element={<SettingsPage onLogout={authEnabled ? onLogout : undefined} />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
+            </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </WebSocketProvider>
   )
 }
 

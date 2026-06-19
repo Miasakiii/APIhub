@@ -5,6 +5,7 @@ import (
 	"apihub/internal/repository"
 	"apihub/internal/service"
 	"apihub/internal/syncer"
+	"apihub/internal/ws"
 	"database/sql"
 	"net/http"
 
@@ -27,7 +28,7 @@ type Services struct {
 }
 
 // Register sets up all HTTP routes.
-func Register(r *gin.Engine, db *sql.DB, store *crypto.Store, cfg AuthConfig) {
+func Register(r *gin.Engine, db *sql.DB, store *crypto.Store, cfg AuthConfig, hub *ws.Hub) {
 	// Initialize repositories
 	providerRepo := repository.NewProviderRepo(db)
 	keyRepo := repository.NewKeyRepo(db)
@@ -80,6 +81,9 @@ func Register(r *gin.Engine, db *sql.DB, store *crypto.Store, cfg AuthConfig) {
 	registerSessions(protected.Group("/sessions"), services.Session)
 	RegisterScan(protected.Group("/scan"), services.Provider, services.Key)
 	RegisterAgents(protected.Group("/agents"), services.Agent)
+
+	// WebSocket endpoint for real-time updates
+	r.GET("/ws", ws.Handler(hub))
 }
 
 // RegisterSyncRoutes registers sync endpoints on the protected group.

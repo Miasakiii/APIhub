@@ -2,6 +2,7 @@ package alert
 
 import (
 	"apihub/internal/model"
+	"apihub/internal/ws"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -13,6 +14,7 @@ import (
 type Engine struct {
 	db       *sql.DB
 	notifier *Notifier
+	hub      *ws.Hub
 }
 
 // NewEngine creates a new alert engine.
@@ -23,6 +25,11 @@ func NewEngine(db *sql.DB) *Engine {
 // SetNotifier sets the notifier for sending alert notifications.
 func (e *Engine) SetNotifier(n *Notifier) {
 	e.notifier = n
+}
+
+// SetHub sets the WebSocket hub for real-time alert broadcasting.
+func (e *Engine) SetHub(h *ws.Hub) {
+	e.hub = h
 }
 
 // RunOnce runs all enabled alert rules once.
@@ -245,6 +252,13 @@ func (e *Engine) createHistory(alertID, message, level string) error {
 func (e *Engine) notify(level, title, message string) {
 	if e.notifier != nil {
 		go e.notifier.Send(level, title, message)
+	}
+	if e.hub != nil {
+		e.hub.Broadcast(ws.NewMessage(ws.TypeAlertTrigger, ws.AlertData{
+			Level:   level,
+			Title:   title,
+			Message: message,
+		}))
 	}
 }
 
