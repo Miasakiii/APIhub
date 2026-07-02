@@ -4,6 +4,7 @@ import { api, setUnauthorizedHandler } from './api'
 import { clearToken, isAuthed } from './lib/auth'
 import { ThemeProvider } from './lib/theme'
 import { CompactModeProvider } from './lib/compact-mode'
+import { useCompactShortcut } from './lib/use-compact-shortcut'
 import { ToastProvider } from './components/ui'
 import { useToast } from './lib/use-toast'
 import { WebSocketProvider } from './lib/use-ws.tsx'
@@ -52,12 +53,18 @@ function AlertToaster() {
   return null
 }
 
+function CompactShortcutListener() {
+  useCompactShortcut()
+  return null
+}
+
 function AppLayout({ onLogout, authEnabled }: { onLogout?: () => void; authEnabled: boolean }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
 
   return (
       <CompactModeProvider>
+        <CompactShortcutListener />
         <WebSocketProvider>
           <AlertToaster />
           <div className="flex h-screen overflow-hidden app-shell-bg">
