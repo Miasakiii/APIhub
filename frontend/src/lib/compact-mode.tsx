@@ -8,7 +8,7 @@ interface CompactModeContextValue {
   toggle: () => void
 }
 
-const CompactModeContext = createContext<CompactModeContextValue>({
+export const CompactModeContext = createContext<CompactModeContextValue>({
   mode: 'full',
   setMode: () => {},
   toggle: () => {},
