@@ -1,6 +1,8 @@
 # APIHub
 
-> Personal API monitoring dashboard. Track costs, tokens, and usage across multiple LLM providers.
+> 大模型 API 用量监控工具 - 专注、简洁、实时
+
+借鉴 token-monitor 的设计哲学，专注于一件事：**监控你的 AI 工具消耗了多少 Token 和费用**。
 
 [中文](#apihub-cn)
 
@@ -55,47 +57,40 @@ v0.14 adds desktop settings panel, notification integration, and comprehensive u
 
 ## Features
 
-- **Client-side routing**: react-router with URL-based navigation, browser history, and deep linking
-- **Code splitting**: route-level lazy loading — each page is a separate chunk, only loaded when visited
-- **Dark mode**: full dark/light theme toggle with localStorage persistence
-- **Polished UI**: Modal dialogs, Toast notifications, Tabs, loading skeletons, page transitions
-- **Multi-provider API key management** with AES-256-GCM encryption
-- **Three data sources**: cc-switch proxy logs / Claude Code JSONL / Provider API syncers
-- **Cost aggregation** with daily statistics (accumulative sync, not overwrite)
-- **Incremental JSONL sync** with byte-offset tracking and file rotation detection
-- **Source C Syncers**: OpenRouter / OpenAI / Anthropic / one-api / new-api balance & usage hooks
-- **Provider-syncer mapping**: configurable `syncer` field per provider
-- **Alert system**: balance_low, key_expired, abnormal_frequency (5-min background checker)
-- **Subscription management**: CRUD + expiry calendar
-- **Frequency view**: hourly heatmap, peak QPS, daily distribution
-- **Usage list pagination**: page/page_size support with frontend controls
-- **CSV export**: usage records export
-- **Optional authentication**: JWT (HS256) when `APIHUB_AUTH_ENABLED=true`; local dev defaults to open access
-- **Security defaults**: binds to `127.0.0.1` when auth disabled; configurable via `APIHUB_BIND_ADDR`
-- **Master key backup prompt**: first-run warning with file path
-- **Playground**: multi-protocol API testing (OpenAI Chat Completions / Anthropic Messages)
-- **Model detail page**: click any model in Dashboard ranking → full detail page with cost trend, token usage charts, and paginated records
-- **Webhook 通知**: 告警触发时自动发送 Webhook 通知
-- **Docker**: single-container deployment with static frontend serving + SPA fallback
-- **SQLite-backed**, local-first, low external dependency surface
-- **Model pricing table**: 35+ built-in model prices with auto cost backfill when source reports $0
-- **Incremental DB migrations**: versioned schema via `PRAGMA user_version`, auto-upgrade on startup
-- **Three-layer aggregation**: sessions (30-min window) → hourly buckets → daily rollups
-- **Session analysis page**: hourly activity chart, session list with filtering and pagination
-- **Local config auto-scan**: detects API keys from Claude Code, DeepSeek, Kimi Code, Codex configs and environment variables
-- **Subscription auto-detection**: syncer FetchBalance automatically creates/updates subscription records
-- **Subscription expiry alerts**: alerts when subscriptions are expiring within 7 days
-- **Agent dimension tracking**: per-agent cost tracking with agents table and agent_id across all usage tables
-- **WebSocket real-time updates**: live usage updates, alert toast notifications, sync progress broadcasting
+### 核心功能
+
+- **实时用量扫描** - 自动扫描 Claude Code、Codex、OpenCode 等工具的本地日志
+- **成本统计** - 按模型、按天汇总费用，内置 35+ 模型定价
+- **简单仪表盘** - 今日费用、总 Token 数、模型排行、最近用量
+- **历史记录** - 按天/周/月查看用量趋势
+
+### 界面特性
+
+- **暗色模式** - 完整 dark/light 主题切换，localStorage 持久化
+- **紧凑模式** - 侧边栏可折叠为图标模式，Ctrl+Shift+C 快捷切换
+- **实时更新** - WebSocket 推送，秒级刷新
+- **简洁导航** - 只保留核心页面，一目了然
+
+### 数据源
+
+- **Claude Code JSONL** - 增量扫描 `~/.claude/projects/` 目录
+- **本地配置扫描** - 自动检测 API Key（Claude Code、DeepSeek、Kimi Code、Codex）
+- **MCP 配置扫描** - 识别 MCP 服务器配置中的 API Key
+
+### 技术特性
+
+- **SQLite-backed** - 本地优先，无需外部数据库
+- **Docker 支持** - 单容器部署
+- **Wails 桌面端** - 系统托盘模式，后台持续监控
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Backend | Go 1.26, Gin, `database/sql` + `modernc.org/sqlite` |
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, Recharts, React Router |
-| UI | Custom component library with dark mode, Toast system, Modal dialogs |
-| Crypto | HKDF-SHA256 key derivation, AES-256-GCM encryption |
+| Backend | Go 1.26, Gin, SQLite |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, Recharts |
+| UI | 简洁的组件库，暗色模式，紧凑模式 |
+| 实时 | WebSocket 推送 |
 
 ## Quick Start
 
@@ -195,15 +190,14 @@ Details: [docs/SECURITY.md](docs/SECURITY.md) · Roadmap: [ROADMAP.md](ROADMAP.m
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │  Dashboard  │────▶│   React +   │────▶│  Go + Gin   │
-│  (Pages)    │     │  Recharts   │     │  REST API   │
+│  (简化的)   │     │  Recharts   │     │  REST API   │
 └─────────────┘     └─────────────┘     └──────┬──────┘
                                                │
                           ┌────────────────────┼────────────────────┐
                           ▼                    ▼                    ▼
                    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-                   │ Source A    │    │ Source B    │    │ Source C    │
-                   │ cc-switch   │    │ JSONL       │    │ Syncers     │
-                   │ (proxy logs)│    │ (incremental)│    │ (OpenRouter)│
+                   │ Scanner     │    │ JSONL       │    │ Aggregator  │
+                   │ (自动检测)  │    │ (增量扫描)  │    │ (用量聚合)  │
                    └─────────────┘    └─────────────┘    └─────────────┘
 ```
 
@@ -390,40 +384,17 @@ MIT License - see [LICENSE](LICENSE) file.
 
 ## APIHub 中文简介
 
-APIHub 是一个本地优先的个人 API 用量监控仪表盘，用于追踪多个 LLM 服务商（OpenAI、Anthropic、OpenRouter 等）的 API 用量与费用。
+**大模型 API 用量监控工具** - 专注、简洁、实时
 
-### 当前状态
+借鉴 token-monitor 的设计哲学，专注于一件事：**监控你的 AI 工具消耗了多少 Token 和费用**。
 
-> 快照：**v0.12 stable**，更新于 2026-06-19。
+### 核心功能
 
-v0.12 完成 WebSocket 实时推送：后端 Hub 模式连接管理，告警/同步/用量事件实时广播，前端自动重连与 Toast 通知集成。
-
-v0.11 完成 Agent 维度追踪：新增 agents 表，所有用量表添加 agent_id 字段，前端新增 Agent 管理页面。
-
-v0.10 完成订阅自动检测：syncer 的 FetchBalance 成功后自动创建/更新订阅记录，告警引擎实现订阅到期检测，前端显示自动标记。
-
-v0.9 完成本地配置自动扫描：启动时检测 Claude Code、DeepSeek、Kimi Code、Codex 等工具的 API Key，前端提供一键导入 UI。
-
-v0.8 完成三层用量聚合：usage_sessions（会话粒度，30 分钟窗口）+ usage_activity_buckets（小时粒度）+ daily_stats（天粒度），前端新增会话分析页面。
-
-推荐运行方式：
-
-```bash
-# Docker（推荐）
-docker-compose up --build
-# 打开 http://localhost:8080
-
-# 或开发模式
-go run ./cmd/apihub
-cd frontend && npm.cmd run dev
-```
-
-验证状态：前端 build ✅ | 前端 lint ✅ | Go 测试 ✅，详见 [ROADMAP.md](ROADMAP.md)。
-
-### 数据来源
-- **Source A**：cc-switch 代理请求日志（如使用 cc-switch）
-- **Source B**：Claude Code JSONL 用量文件（`~/.claude/projects/`）
-- **Source C**：内置同步器（OpenRouter / OpenAI / Anthropic / one-api / new-api）
+- **实时用量扫描** - 自动扫描 Claude Code、Codex 等工具的本地日志
+- **成本统计** - 按模型、按天汇总费用
+- **简单仪表盘** - 今日费用、总 Token 数、模型排行
+- **暗色模式** - 完整 dark/light 主题切换
+- **紧凑模式** - 侧边栏可折叠为图标模式
 
 ### 快速开始
 
@@ -442,10 +413,9 @@ npm run dev
 
 | 层级 | 技术 |
 |---|---|
-| 后端 | Go 1.26, Gin, database/sql + modernc.org/sqlite |
-| 前端 | React 19, TypeScript, Vite, Tailwind CSS v4, Recharts, React Router |
-| UI | 自研组件库，支持暗色主题、Toast 通知、Modal 对话框 |
-| 加密 | HKDF-SHA256 密钥派生, AES-256-GCM 加密 |
+| 后端 | Go 1.26, Gin, SQLite |
+| 前端 | React 19, TypeScript, Vite, Tailwind CSS v4, Recharts |
+| 实时 | WebSocket 推送 |
 
 ### 许可证
 
