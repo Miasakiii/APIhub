@@ -57,42 +57,44 @@ function AppLayout({ onLogout, authEnabled }: { onLogout?: () => void; authEnabl
   const location = useLocation()
 
   return (
-    <WebSocketProvider>
-      <AlertToaster />
-      <div className="flex h-screen overflow-hidden app-shell-bg">
-        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <CompactModeProvider>
+        <WebSocketProvider>
+          <AlertToaster />
+          <div className="flex h-screen overflow-hidden app-shell-bg">
+            <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <TopBar
-            authEnabled={authEnabled}
-            onLogout={onLogout}
-            onMenuOpen={() => setSidebarOpen(true)}
-          />
+            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+              <TopBar
+                authEnabled={authEnabled}
+                onLogout={onLogout}
+                onMenuOpen={() => setSidebarOpen(true)}
+              />
 
-          <div className="flex-1 overflow-auto p-4 lg:p-8">
-            <div className="max-w-7xl mx-auto page-enter" key={location.pathname}>
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/model/:model" element={<ModelDetail />} />
-                  <Route path="/providers" element={<Providers />} />
-                  <Route path="/keys" element={<Keys />} />
-                  <Route path="/usage" element={<UsageLog />} />
-                  <Route path="/alerts" element={<Alerts />} />
-                  <Route path="/subscriptions" element={<Subscriptions />} />
-                  <Route path="/frequency" element={<Frequency />} />
-                  <Route path="/sessions" element={<Sessions />} />
-                  <Route path="/agents" element={<Agents />} />
-                  <Route path="/playground" element={<Playground />} />
-                  <Route path="/settings" element={<SettingsPage onLogout={authEnabled ? onLogout : undefined} />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </Suspense>
-            </div>
+              <div className="flex-1 overflow-auto p-4 lg:p-8">
+                <div className="max-w-7xl mx-auto page-enter" key={location.pathname}>
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/model/:model" element={<ModelDetail />} />
+                      <Route path="/providers" element={<Providers />} />
+                      <Route path="/keys" element={<Keys />} />
+                      <Route path="/usage" element={<UsageLog />} />
+                      <Route path="/alerts" element={<Alerts />} />
+                      <Route path="/subscriptions" element={<Subscriptions />} />
+                      <Route path="/frequency" element={<Frequency />} />
+                      <Route path="/sessions" element={<Sessions />} />
+                      <Route path="/agents" element={<Agents />} />
+                      <Route path="/playground" element={<Playground />} />
+                      <Route path="/settings" element={<SettingsPage onLogout={authEnabled ? onLogout : undefined} />} />
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </Suspense>
+                </div>
+              </div>
+            </main>
           </div>
-        </main>
-      </div>
-    </WebSocketProvider>
+        </WebSocketProvider>
+      </CompactModeProvider>
   )
 }
 
@@ -151,11 +153,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
-        <CompactModeProvider>
-          <ToastProvider>
-            <AppShell />
-          </ToastProvider>
-        </CompactModeProvider>
+        <ToastProvider>
+          <AppShell />
+        </ToastProvider>
       </ThemeProvider>
     </BrowserRouter>
   )
