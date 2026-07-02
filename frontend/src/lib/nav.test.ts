@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { navMain, navMore, navBottom, allNav } from './nav'
+import { navMain, navBottom, allNav } from './nav'
 
 describe('navMain', () => {
-  it('has 4 items', () => {
-    expect(navMain).toHaveLength(4)
+  it('has 3 items', () => {
+    expect(navMain).toHaveLength(3)
   })
 
   it('starts with dashboard', () => {
@@ -21,16 +21,6 @@ describe('navMain', () => {
   })
 })
 
-describe('navMore', () => {
-  it('has 6 items', () => {
-    expect(navMore).toHaveLength(6)
-  })
-
-  it('includes playground', () => {
-    expect(navMore.some(i => i.id === 'playground')).toBe(true)
-  })
-})
-
 describe('navBottom', () => {
   it('has settings', () => {
     expect(navBottom).toHaveLength(1)
@@ -40,7 +30,7 @@ describe('navBottom', () => {
 
 describe('allNav', () => {
   it('is the sum of all nav arrays', () => {
-    expect(allNav).toHaveLength(navMain.length + navMore.length + navBottom.length)
+    expect(allNav).toHaveLength(navMain.length + navBottom.length)
   })
 
   it('has unique ids', () => {

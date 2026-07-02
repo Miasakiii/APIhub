@@ -3,7 +3,7 @@ import { X, Sparkles, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useTheme } from '../../lib/use-theme'
 import { useCompactMode } from '../../lib/compact-mode'
-import { navMain, navMore, navBottom } from '../../lib/nav'
+import { navMain, navBottom } from '../../lib/nav'
 
 interface SidebarProps {
   open: boolean
@@ -78,21 +78,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
         <nav className={cn('flex-1 overflow-y-auto', isCollapsed ? 'p-2' : 'p-3 space-y-6')}>
           {isCollapsed ? (
-            <>
-              <div className="space-y-1">{navMain.map((n) => <NavItem key={n.id} {...n} />)}</div>
-              <div className="space-y-1">{navMore.map((n) => <NavItem key={n.id} {...n} />)}</div>
-            </>
+            <div className="space-y-1">{navMain.map((n) => <NavItem key={n.id} {...n} />)}</div>
           ) : (
-            <>
-              <div>
-                <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">数据</p>
-                <div className="space-y-0.5">{navMain.map((n) => <NavItem key={n.id} {...n} />)}</div>
-              </div>
-              <div>
-                <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">工具</p>
-                <div className="space-y-0.5">{navMore.map((n) => <NavItem key={n.id} {...n} />)}</div>
-              </div>
-            </>
+            <div>
+              <div className="space-y-0.5">{navMain.map((n) => <NavItem key={n.id} {...n} />)}</div>
+            </div>
           )}
         </nav>
 
