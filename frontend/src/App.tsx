@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { api, setUnauthorizedHandler } from './api'
 import { clearToken, isAuthed } from './lib/auth'
 import { ThemeProvider } from './lib/theme'
+import { CompactModeProvider } from './lib/compact-mode'
 import { ToastProvider } from './components/ui'
 import { useToast } from './lib/use-toast'
 import { WebSocketProvider } from './lib/use-ws.tsx'
@@ -150,9 +151,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
-        <ToastProvider>
-          <AppShell />
-        </ToastProvider>
+        <CompactModeProvider>
+          <ToastProvider>
+            <AppShell />
+          </ToastProvider>
+        </CompactModeProvider>
       </ThemeProvider>
     </BrowserRouter>
   )
