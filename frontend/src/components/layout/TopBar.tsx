@@ -1,6 +1,7 @@
 import { useLocation, useParams } from 'react-router-dom'
 import { Menu, LogOut } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { useCompactMode } from '../../lib/compact-mode'
 import { allNav } from '../../lib/nav'
 
 interface TopBarProps {
@@ -12,6 +13,7 @@ interface TopBarProps {
 export function TopBar({ authEnabled, onLogout, onMenuOpen }: TopBarProps) {
   const location = useLocation()
   const params = useParams()
+  const { mode } = useCompactMode()
 
   const currentLabel = location.pathname.startsWith('/model/')
     ? (params.model ?? '')
@@ -21,7 +23,10 @@ export function TopBar({ authEnabled, onLogout, onMenuOpen }: TopBarProps) {
     <header className="h-16 shrink-0 flex items-center gap-4 px-4 lg:px-8 border-b border-slate-200/60 dark:border-slate-700/60 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl">
       <button
         type="button"
-        className="lg:hidden p-2 -ml-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
+        className={cn(
+          'p-2 -ml-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400',
+          mode === 'hidden' ? '' : 'lg:hidden',
+        )}
         onClick={onMenuOpen}
         aria-label="菜单"
       >
