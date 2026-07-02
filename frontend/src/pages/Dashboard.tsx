@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 
-import { DollarSign, BarChart3, Activity, Cpu, ArrowUp, ArrowDown, Minus } from 'lucide-react'
+import { DollarSign, BarChart3, Activity, Cpu, ArrowUp, ArrowDown, Minus, Scan, RefreshCw, CheckCircle } from 'lucide-react'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { api } from '../api'
 import { formatUSD, formatNum } from '../lib/utils'
@@ -44,6 +44,8 @@ export function Dashboard() {
   const [trend, setTrend] = useState<TrendPoint[]>([])
   const [recentUsage, setRecentUsage] = useState<UsageRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [scanning, setScanning] = useState(false)
+  const [scanResult, setScanResult] = useState<{ imported: number; skipped: number } | null>(null)
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const fetchData = useCallback(() => {
@@ -59,6 +61,29 @@ export function Dashboard() {
       setRecentUsage(u.records)
     }).catch((e) => console.error(e)).finally(() => setLoading(false))
   }, [])
+
+  const handleScan = async () => {
+    setScanning(true)
+    setScanResult(null)
+    try {
+      const scanRes = await api.scan.run()
+      if (scanRes.findings.length > 0) {
+        const indices = scanRes.findings.map((_, i) => i)
+        const importRes = await api.scan.import(indices)
+        setScanResult({
+          imported: importRes.results.filter(r => r.status === 'created').length,
+          skipped: importRes.results.filter(r => r.status === 'skipped').length,
+        })
+        fetchData()
+      } else {
+        setScanResult({ imported: 0, skipped: 0 })
+      }
+    } catch (e) {
+      console.error('Scan failed:', e)
+    } finally {
+      setScanning(false)
+    }
+  }
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -83,9 +108,14 @@ export function Dashboard() {
         title="数据总览"
         description="实时监控 API 用量、费用与模型分布"
         actions={
-          <Button variant="secondary" onClick={() => { setLoading(true); fetchData() }}>
-            刷新
-          </Button>
+          <>
+            <Button onClick={handleScan} loading={scanning}>
+              <Scan className="w-4 h-4" /> 扫描配置
+            </Button>
+            <Button variant="secondary" onClick={() => { setLoading(true); fetchData() }}>
+              <RefreshCw className="w-4 h-4" /> 刷新
+            </Button>
+          </>
         }
       />
 
@@ -115,6 +145,15 @@ export function Dashboard() {
         <MetricCard icon={Activity} label="总请求数" value={formatNum(totalRequests)} accent="violet" />
         <MetricCard icon={Cpu} label="模型数" value={String(summary?.unique_models ?? 0)} accent="amber" />
       </div>
+
+      {scanResult && (
+        <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800/50">
+          <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-sm text-emerald-700 dark:text-emerald-300">
+            扫描完成：导入 {scanResult.imported} 个配置，跳过 {scanResult.skipped} 个
+          </span>
+        </div>
+      )}
 
       {/* Row 2: Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
