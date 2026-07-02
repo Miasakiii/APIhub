@@ -4,6 +4,8 @@ import { cn } from '../lib/utils'
 import { api, isWailsEnv } from '../api'
 import type { ScanFinding, ScanImportResult } from '../api'
 import { useTheme } from '../lib/use-theme'
+import { useCompactMode } from '../lib/compact-mode'
+import type { CompactMode } from '../lib/compact-mode'
 import { Card, Button, Select } from '../components/ui'
 
 interface SettingsProps { onLogout?: () => void }
@@ -57,6 +59,7 @@ function TabButton({ id, label, icon: Icon, active, onClick }: {
 
 function GeneralSettings() {
   const { theme, setTheme } = useTheme()
+  const { mode: compactMode, setMode: setCompactMode } = useCompactMode()
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">通用设置</h2>
@@ -70,6 +73,18 @@ function GeneralSettings() {
         <SettingRow icon={theme === 'dark' ? Moon : Sun} label="主题" description="切换亮色/暗色主题">
           <Select className="min-w-[120px]" value={theme} onChange={(e) => setTheme(e.target.value as 'light' | 'dark')} title="主题">
             <option value="light">亮色</option><option value="dark">暗色</option>
+          </Select>
+        </SettingRow>
+        <SettingRow icon={Monitor} label="侧边栏模式" description="切换侧边栏显示方式">
+          <Select
+            className="min-w-[120px]"
+            value={compactMode}
+            onChange={(e) => setCompactMode(e.target.value as CompactMode)}
+            title="侧边栏模式"
+          >
+            <option value="full">完整</option>
+            <option value="icons">仅图标</option>
+            <option value="hidden">隐藏</option>
           </Select>
         </SettingRow>
       </div>
