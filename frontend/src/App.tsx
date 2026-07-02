@@ -78,7 +78,7 @@ function AppLayout({ onLogout, authEnabled }: { onLogout?: () => void; authEnabl
                       <Route path="/model/:model" element={<ModelDetail />} />
                       <Route path="/usage" element={<UsageLog />} />
                       <Route path="/frequency" element={<Frequency />} />
-                      <Route path="/settings" element={<SettingsPage onLogout={authEnabled ? onLogout : undefined} />} />
+                      <Route path="/settings" element={<SettingsPage />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </Suspense>
