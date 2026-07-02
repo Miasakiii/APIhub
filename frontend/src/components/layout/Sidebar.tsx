@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
-import { X, Sparkles, Moon, Sun } from 'lucide-react'
+import { X, Sparkles, Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useTheme } from '../../lib/use-theme'
+import { useCompactMode } from '../../lib/compact-mode'
 import { navMain, navMore, navBottom } from '../../lib/nav'
 
 interface SidebarProps {
@@ -11,6 +12,8 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { theme, toggle } = useTheme()
+  const { mode, setMode } = useCompactMode()
+  const isCollapsed = mode === 'icons'
 
   function NavItem({ path, label, icon: Icon }: { path: string; label: string; icon: React.ComponentType<{ className?: string }> }) {
     return (
@@ -19,15 +22,18 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         end={path === '/'}
         onClick={onClose}
         className={({ isActive }) => cn(
-          'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative group',
+          'w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 relative group',
+          isCollapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5',
           isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5',
         )}
+        title={isCollapsed ? label : undefined}
       >
         {({ isActive }) => (
           <>
-            {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-gradient-to-b from-indigo-400 to-violet-400" />}
-            <Icon className={cn('w-[18px] h-[18px] shrink-0', isActive ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300')} />
-            <span>{label}</span>
+            {isActive && !isCollapsed && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-gradient-to-b from-indigo-400 to-violet-400" />}
+            {isActive && isCollapsed && <span className="absolute left-1/2 -translate-x-1/2 bottom-0 w-5 h-[3px] rounded-t-full bg-gradient-to-r from-indigo-400 to-violet-400" />}
+            <Icon className={cn('w-5 h-5 shrink-0', isActive ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300')} />
+            {!isCollapsed && <span>{label}</span>}
           </>
         )}
       </NavLink>
@@ -39,42 +45,95 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       {open && <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 lg:hidden" onClick={onClose} />}
 
       <aside className={cn(
-        'fixed lg:static inset-y-0 left-0 z-40 w-64 flex flex-col sidebar-bg border-r border-white/[0.06]',
-        'transition-transform duration-300 ease-out',
+        'fixed lg:static inset-y-0 left-0 z-40 flex flex-col sidebar-bg border-r border-white/[0.06]',
+        'transition-all duration-300 ease-out',
+        isCollapsed ? 'w-16' : 'w-64',
         open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
       )}>
-        <div className="h-16 flex items-center gap-3 px-5 border-b border-white/[0.06] shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+        <div className={cn(
+          'h-16 flex items-center border-b border-white/[0.06] shrink-0',
+          isCollapsed ? 'justify-center px-2' : 'gap-3 px-5',
+        )}>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
-          <div className="flex-1 min-w-0">
-            <span className="font-bold text-white text-base tracking-tight">APIHub</span>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest">Monitor</p>
-          </div>
-          <button type="button" className="lg:hidden text-slate-400 hover:text-white p-1" onClick={onClose} aria-label="关闭">
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <span className="font-bold text-white text-base tracking-tight">APIHub</span>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest">Monitor</p>
+            </div>
+          )}
+          <button
+            type="button"
+            className={cn(
+              'text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors',
+              isCollapsed ? 'hidden' : 'lg:hidden',
+            )}
+            onClick={onClose}
+            aria-label="关闭"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-3 space-y-6">
-          <div>
-            <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">数据</p>
-            <div className="space-y-0.5">{navMain.map((n) => <NavItem key={n.id} {...n} />)}</div>
-          </div>
-          <div>
-            <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">工具</p>
-            <div className="space-y-0.5">{navMore.map((n) => <NavItem key={n.id} {...n} />)}</div>
-          </div>
+        <nav className={cn('flex-1 overflow-y-auto', isCollapsed ? 'p-2' : 'p-3 space-y-6')}>
+          {isCollapsed ? (
+            <>
+              <div className="space-y-1">{navMain.map((n) => <NavItem key={n.id} {...n} />)}</div>
+              <div className="space-y-1">{navMore.map((n) => <NavItem key={n.id} {...n} />)}</div>
+            </>
+          ) : (
+            <>
+              <div>
+                <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">数据</p>
+                <div className="space-y-0.5">{navMain.map((n) => <NavItem key={n.id} {...n} />)}</div>
+              </div>
+              <div>
+                <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">工具</p>
+                <div className="space-y-0.5">{navMore.map((n) => <NavItem key={n.id} {...n} />)}</div>
+              </div>
+            </>
+          )}
         </nav>
 
-        <div className="p-3 border-t border-white/[0.06] space-y-1">
-          {navBottom.map((n) => <NavItem key={n.id} {...n} />)}
-          <button type="button" onClick={toggle} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200">
-            {theme === 'dark' ? <Sun className="w-[18px] h-[18px] text-slate-500" /> : <Moon className="w-[18px] h-[18px] text-slate-500" />}
-            <span>{theme === 'dark' ? '亮色模式' : '暗色模式'}</span>
-          </button>
-          <div className="px-3 pt-2"><p className="text-[10px] text-slate-600">APIHub v0.4</p></div>
+        <div className={cn('p-3 border-t border-white/[0.06] space-y-1', isCollapsed && 'p-2')}>
+          {isCollapsed ? (
+            <>
+              {navBottom.map((n) => <NavItem key={n.id} {...n} />)}
+              <button
+                type="button"
+                onClick={toggle}
+                className="w-full flex items-center justify-center px-2 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200"
+                title={theme === 'dark' ? '亮色模式' : '暗色模式'}
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5 text-slate-500" /> : <Moon className="w-5 h-5 text-slate-500" />}
+              </button>
+            </>
+          ) : (
+            <>
+              {navBottom.map((n) => <NavItem key={n.id} {...n} />)}
+              <button type="button" onClick={toggle} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200">
+                {theme === 'dark' ? <Sun className="w-[18px] h-[18px] text-slate-500" /> : <Moon className="w-[18px] h-[18px] text-slate-500" />}
+                <span>{theme === 'dark' ? '亮色模式' : '暗色模式'}</span>
+              </button>
+              <div className="px-3 pt-2"><p className="text-[10px] text-slate-600">APIHub v0.4</p></div>
+            </>
+          )}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setMode(isCollapsed ? 'full' : 'icons')}
+          className={cn(
+            'absolute top-1/2 -translate-y-1/2 w-6 h-12 flex items-center justify-center',
+            'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white',
+            'rounded-r-lg transition-all duration-200',
+            'right-0',
+          )}
+          aria-label={isCollapsed ? '展开侧边栏' : '折叠侧边栏'}
+        >
+          {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
       </aside>
     </>
   )
