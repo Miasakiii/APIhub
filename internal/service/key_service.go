@@ -25,6 +25,11 @@ type KeyRepository interface {
 	CountActive() (int64, error)
 }
 
+// AuditLogger records audit events for key lifecycle actions.
+type AuditLogger interface {
+	LogAction(id, keyID, action, detail string) error
+}
+
 // KeyEncryptor defines the interface for key encryption operations.
 type KeyEncryptor interface {
 	Encrypt(data []byte) ([]byte, error)
@@ -33,13 +38,28 @@ type KeyEncryptor interface {
 
 // KeyService handles API key business logic.
 type KeyService struct {
-	repo  KeyRepository
-	store KeyEncryptor
+	repo      KeyRepository
+	store     KeyEncryptor
+	auditLog  AuditLogger
 }
 
 // NewKeyService creates a new KeyService.
 func NewKeyService(repo KeyRepository, store KeyEncryptor) *KeyService {
 	return &KeyService{repo: repo, store: store}
+}
+
+// WithAuditLog sets an optional audit logger for key lifecycle tracking.
+func (s *KeyService) WithAuditLog(logger AuditLogger) *KeyService {
+	s.auditLog = logger
+	return s
+}
+
+func (s *KeyService) logAudit(keyID, action, detail string) {
+	if s.auditLog == nil {
+		return
+	}
+	id := util.GenerateID()
+	_ = s.auditLog.LogAction(id, keyID, action, detail)
 }
 
 // CreateRequest contains the data needed to create a new API key.
@@ -87,6 +107,8 @@ func (s *KeyService) CreateWithSource(req CreateRequest, source string) (*Create
 		return nil, err
 	}
 
+	s.logAudit(id, "created", "source="+source)
+
 	return &CreateResult{
 		ID:      id,
 		KeyHash: kh,
@@ -116,12 +138,20 @@ func (s *KeyService) Decrypt(id string) (string, error) {
 
 // Revoke marks a key as revoked.
 func (s *KeyService) Revoke(id string) error {
-	return s.repo.Revoke(id)
+	if err := s.repo.Revoke(id); err != nil {
+		return err
+	}
+	s.logAudit(id, "revoked", "")
+	return nil
 }
 
 // Delete removes a key.
 func (s *KeyService) Delete(id string) error {
-	return s.repo.Delete(id)
+	if err := s.repo.Delete(id); err != nil {
+		return err
+	}
+	s.logAudit(id, "deleted", "")
+	return nil
 }
 
 // CountActive returns the number of active keys.

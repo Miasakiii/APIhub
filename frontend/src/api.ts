@@ -22,7 +22,7 @@ let BASE = getBaseURL()
 async function initWailsBase() {
   if (isWailsEnv()) {
     try {
-      const url = await window.go.main.WailsApp.GetAPIURL()
+      const url = await window.go!.main!.WailsApp!.GetAPIURL()
       BASE = url + '/api/v1'
     } catch {
       // Fallback to default port
@@ -251,6 +251,14 @@ export interface ScanFinding {
   config_path: string
 }
 
+export interface KeyAuditEntry {
+  id: string
+  key_id: string
+  action: string
+  detail: string
+  created_at: string
+}
+
 export interface ScanImportResult {
   name: string
   provider_id?: string
@@ -287,6 +295,7 @@ export const api = {
     decrypt: (id: string) => get<{ key: string }>(`/keys/${id}/decrypt`),
     revoke: (id: string) => post(`/keys/${id}/revoke`),
     delete: (id: string) => del(`/keys/${id}`),
+    audit: (id: string) => get<{ audit_logs: KeyAuditEntry[] }>(`/keys/${id}/audit`),
   },
 
   usage: {

@@ -32,6 +32,7 @@ func Register(r *gin.Engine, db *sql.DB, store *crypto.Store, cfg AuthConfig, hu
 	// Initialize repositories
 	providerRepo := repository.NewProviderRepo(db)
 	keyRepo := repository.NewKeyRepo(db)
+	keyAuditRepo := repository.NewKeyAuditRepo(db)
 	usageRepo := repository.NewUsageRepo(db)
 	statsRepo := repository.NewStatsRepo(db)
 	alertRepo := repository.NewAlertRepo(db)
@@ -46,7 +47,7 @@ func Register(r *gin.Engine, db *sql.DB, store *crypto.Store, cfg AuthConfig, hu
 	// Initialize services
 	services := &Services{
 		Provider:     service.NewProviderService(providerRepo, keyRepo, usageRepo),
-		Key:          service.NewKeyService(keyRepo, store),
+		Key:          service.NewKeyService(keyRepo, store).WithAuditLog(keyAuditRepo),
 		Usage:        service.NewUsageService(usageRepo, keyRepo),
 		Stats:        service.NewStatsService(statsRepo),
 		Alert:        service.NewAlertService(alertRepo),
@@ -68,7 +69,7 @@ func Register(r *gin.Engine, db *sql.DB, store *crypto.Store, cfg AuthConfig, hu
 	protected := api.Group("")
 	protected.Use(authMW)
 	registerProviders(protected.Group("/providers"), services.Provider)
-	registerKeys(protected.Group("/keys"), services.Key, sensitiveMW)
+	registerKeys(protected.Group("/keys"), services.Key, sensitiveMW, keyAuditRepo)
 	registerUsage(protected.Group("/usage"), services.Usage)
 	registerStats(protected.Group("/stats"), services.Stats)
 	RegisterAlerts(protected.Group("/alerts"), services.Alert)

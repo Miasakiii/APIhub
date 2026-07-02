@@ -1,6 +1,7 @@
 package api
 
 import (
+	"apihub/internal/repository"
 	"apihub/internal/service"
 	"net/http"
 
@@ -8,7 +9,7 @@ import (
 )
 
 // registerKeys registers API key management endpoints.
-func registerKeys(g *gin.RouterGroup, svc *service.KeyService, sensitiveMW gin.HandlerFunc) {
+func registerKeys(g *gin.RouterGroup, svc *service.KeyService, sensitiveMW gin.HandlerFunc, auditRepo *repository.KeyAuditRepo) {
 	g.POST("", func(c *gin.Context) {
 		var req struct {
 			ProviderID string `json:"provider_id" binding:"required"`
@@ -73,4 +74,16 @@ func registerKeys(g *gin.RouterGroup, svc *service.KeyService, sensitiveMW gin.H
 		}
 		c.Status(http.StatusNoContent)
 	})
+
+	// Key audit log
+	if auditRepo != nil {
+		g.GET("/:id/audit", func(c *gin.Context) {
+			logs, err := auditRepo.ListByKeyID(c.Param("id"))
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"audit_logs": logs})
+		})
+	}
 }

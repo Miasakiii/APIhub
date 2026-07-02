@@ -24,8 +24,10 @@ declare global {
     }
     /** Wails v2 runtime — injected automatically in Wails builds */
     runtime?: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       EventsOn(event: string, callback: (...data: any[]) => void): void
       EventsOff(event: string): void
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       EventsEmit(event: string, ...data: any[]): void
       BrowserOpenURL(url: string): void
       WindowMinimise(): void

@@ -92,6 +92,9 @@ func ScanConfigs(homeDir string) []Finding {
 		findings = append(findings, *f)
 	}
 
+	// MCP server configs
+	findings = append(findings, parseMCPConfigs(homeDir)...)
+
 	return findings
 }
 
@@ -238,4 +241,153 @@ func parseCodexAuth(homeDir string) *Finding {
 		Source:       "codex",
 		ConfigPath:   path,
 	}
+}
+
+// mcpConfig represents the top-level MCP configuration file.
+type mcpConfig struct {
+	MCPServers map[string]mcpServer `json:"mcpServers"`
+}
+
+// mcpServer represents a single MCP server entry.
+type mcpServer struct {
+	Command string            `json:"command"`
+	Args    []string          `json:"args"`
+	Env     map[string]string `json:"env"`
+	Headers map[string]string `json:"headers"`
+}
+
+// envToProvider maps known env var names to provider types.
+var envToProvider = map[string]struct {
+	providerType string
+	name         string
+	baseURL      string
+}{
+	"ANTHROPIC_API_KEY":      {"anthropic", "Anthropic (MCP)", "https://api.anthropic.com"},
+	"ANTHROPIC_AUTH_TOKEN":   {"anthropic", "Anthropic (MCP)", "https://api.anthropic.com"},
+	"OPENAI_API_KEY":         {"openai", "OpenAI (MCP)", "https://api.openai.com/v1"},
+	"DEEPSEEK_API_KEY":       {"deepseek", "DeepSeek (MCP)", "https://api.deepseek.com"},
+	"GEMINI_API_KEY":         {"gemini", "Google Gemini (MCP)", ""},
+	"OPENROUTER_API_KEY":     {"openrouter", "OpenRouter (MCP)", "https://openrouter.ai/api/v1"},
+	"GITHUB_TOKEN":           {"github", "GitHub (MCP)", "https://api.github.com"},
+	"GITHUB_PERSONAL_ACCESS_TOKEN": {"github", "GitHub (MCP)", "https://api.github.com"},
+	"BRAVE_API_KEY":          {"brave", "Brave Search (MCP)", ""},
+	"TAVILY_API_KEY":         {"tavily", "Tavily Search (MCP)", ""},
+	"SERPER_API_KEY":         {"serper", "Serper (MCP)", ""},
+	"EXA_API_KEY":            {"exa", "Exa Search (MCP)", ""},
+}
+
+// parseMCPConfigs scans known MCP config file paths for API keys.
+func parseMCPConfigs(homeDir string) []Finding {
+	var findings []Finding
+
+	paths := []string{
+		filepath.Join(homeDir, ".claude", "mcp.json"),
+		filepath.Join(homeDir, ".codex", "mcp.json"),
+		filepath.Join(homeDir, ".cursor", "mcp.json"),
+	}
+
+	for _, path := range paths {
+		findings = append(findings, parseMCPFile(path)...)
+	}
+
+	return findings
+}
+
+// parseMCPFile parses a single MCP config file and extracts API keys.
+func parseMCPFile(path string) []Finding {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+
+	var cfg mcpConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil
+	}
+
+	if len(cfg.MCPServers) == 0 {
+		return nil
+	}
+
+	var findings []Finding
+	seen := make(map[string]bool) // deduplicate by key value
+
+	for serverName, server := range cfg.MCPServers {
+		// Check env vars for API keys
+		for envKey, envVal := range server.Env {
+			if envVal == "" {
+				continue
+			}
+			info, ok := envToProvider[envKey]
+			if !ok {
+				continue
+			}
+			if seen[envVal] {
+				continue
+			}
+			seen[envVal] = true
+
+			findings = append(findings, Finding{
+				ProviderType: info.providerType,
+				Name:         info.name + " (" + serverName + ")",
+				BaseURL:      info.baseURL,
+				Key:          envVal,
+				Source:       "mcp",
+				ConfigPath:   path,
+			})
+		}
+
+		// Check headers for API keys (Bearer tokens, X-API-Key, etc.)
+		for headerKey, headerVal := range server.Headers {
+			if headerVal == "" {
+				continue
+			}
+			if seen[headerVal] {
+				continue
+			}
+
+			// Extract Bearer token
+			if strings.HasPrefix(headerVal, "Bearer ") {
+				token := strings.TrimPrefix(headerVal, "Bearer ")
+				if token == "" || seen[token] {
+					continue
+				}
+				seen[token] = true
+
+				providerType := "openai" // default guess
+				baseURL := ""
+				// Try to guess from header key name
+				lower := strings.ToLower(headerKey)
+				if strings.Contains(lower, "x-api-key") || strings.Contains(lower, "api-key") {
+					providerType = "openai"
+				}
+
+				findings = append(findings, Finding{
+					ProviderType: providerType,
+					Name:         "MCP " + serverName,
+					BaseURL:      baseURL,
+					Key:          token,
+					Source:       "mcp",
+					ConfigPath:   path,
+				})
+				continue
+			}
+
+			// Plain API key values in headers
+			lowerHeader := strings.ToLower(headerKey)
+			if strings.Contains(lowerHeader, "x-api-key") || strings.Contains(lowerHeader, "api-key") {
+				seen[headerVal] = true
+				findings = append(findings, Finding{
+					ProviderType: "openai",
+					Name:         "MCP " + serverName,
+					BaseURL:      "",
+					Key:          headerVal,
+					Source:       "mcp",
+					ConfigPath:   path,
+				})
+			}
+		}
+	}
+
+	return findings
 }

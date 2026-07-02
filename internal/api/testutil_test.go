@@ -83,7 +83,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 	RegisterAlerts(api.Group("/alerts"), svcs.Alert)
 	RegisterSubscriptions(api.Group("/subscriptions"), svcs.Subscription)
 	registerProviders(api.Group("/providers"), svcs.Provider)
-	registerKeys(api.Group("/keys"), svcs.Key, func(c *gin.Context) { c.Next() })
+	registerKeys(api.Group("/keys"), svcs.Key, func(c *gin.Context) { c.Next() }, nil)
 	registerUsage(api.Group("/usage"), svcs.Usage)
 	registerStats(api.Group("/stats"), svcs.Stats)
 	RegisterFrequency(api.Group("/frequency"), svcs.Frequency)

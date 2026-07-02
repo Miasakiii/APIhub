@@ -299,7 +299,7 @@ function DesktopSettings() {
     wails.IsAutoStartEnabled().then(setAutoStart)
     wails.GetVersion().then(setVersion)
     wails.GetDataDir().then(setDataDir)
-  }, [])
+  }, [wails])
 
   const handleMinimizeToTray = async (enable: boolean) => {
     await wails?.SetMinimizeToTray(enable)

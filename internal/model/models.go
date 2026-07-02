@@ -158,6 +158,15 @@ type UsageSession struct {
 	CreatedAt    time.Time `json:"created_at,omitempty"`
 }
 
+// KeyAuditLog records an action performed on an API key for audit trail.
+type KeyAuditLog struct {
+	ID        string    `json:"id"`
+	KeyID     string    `json:"key_id"`
+	Action    string    `json:"action"` // created, revoked, deleted, auto_imported
+	Detail    string    `json:"detail,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+}
+
 // ActivityBucket represents aggregated usage within a single hour for a provider+model.
 type ActivityBucket struct {
 	ID           string    `json:"id"`

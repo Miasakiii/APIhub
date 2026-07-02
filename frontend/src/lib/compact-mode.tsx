@@ -8,6 +8,7 @@ interface CompactModeContextValue {
   toggle: () => void
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const CompactModeContext = createContext<CompactModeContextValue>({
   mode: 'full',
   setMode: () => {},
@@ -39,6 +40,7 @@ export function CompactModeProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCompactMode() {
   return useContext(CompactModeContext)
 }

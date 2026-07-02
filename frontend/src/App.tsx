@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { api, setUnauthorizedHandler } from './api'
+import { api, isWailsEnv, setUnauthorizedHandler } from './api'
 import { clearToken, isAuthed } from './lib/auth'
 import { ThemeProvider } from './lib/theme'
 import { CompactModeProvider } from './lib/compact-mode'

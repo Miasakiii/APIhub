@@ -217,6 +217,115 @@ func TestScanConfigs(t *testing.T) {
 	}
 }
 
+func TestParseMCPFile(t *testing.T) {
+	dir := t.TempDir()
+	mcpPath := filepath.Join(dir, "mcp.json")
+
+	mcpJSON := `{
+		"mcpServers": {
+			"github": {
+				"command": "npx",
+				"args": ["-y", "@modelcontextprotocol/server-github"],
+				"env": {
+					"GITHUB_TOKEN": "ghp_test123456"
+				}
+			},
+			"brave-search": {
+				"command": "npx",
+				"args": ["-y", "@modelcontextprotocol/server-brave-search"],
+				"env": {
+					"BRAVE_API_KEY": "bsk-test-brave-key"
+				}
+			},
+			"custom-proxy": {
+				"command": "python",
+				"args": ["proxy.py"],
+				"env": {
+					"OPENAI_API_KEY": "sk-mcp-openai",
+					"ANTHROPIC_API_KEY": "sk-ant-mcp"
+				},
+				"headers": {
+					"Authorization": "Bearer sk-header-token",
+					"X-API-Key": "sk-header-direct"
+				}
+			}
+		}
+	}`
+	os.WriteFile(mcpPath, []byte(mcpJSON), 0644)
+
+	findings := parseMCPFile(mcpPath)
+	if len(findings) == 0 {
+		t.Fatal("expected findings, got none")
+	}
+
+	// Should find: GITHUB_TOKEN, BRAVE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, Bearer token, X-API-Key header
+	if len(findings) != 6 {
+		t.Errorf("expected 6 findings, got %d: %+v", len(findings), findings)
+	}
+
+	// Check that we have one for each env var
+	foundKeys := make(map[string]bool)
+	for _, f := range findings {
+		foundKeys[f.Key] = true
+	}
+	if !foundKeys["ghp_test123456"] {
+		t.Error("missing github token")
+	}
+	if !foundKeys["bsk-test-brave-key"] {
+		t.Error("missing brave key")
+	}
+	if !foundKeys["sk-mcp-openai"] {
+		t.Error("missing openai key")
+	}
+	if !foundKeys["sk-ant-mcp"] {
+		t.Error("missing anthropic key")
+	}
+	if !foundKeys["sk-header-token"] {
+		t.Error("missing bearer token from header")
+	}
+	if !foundKeys["sk-header-direct"] {
+		t.Error("missing x-api-key from header")
+	}
+
+	// Check source is "mcp" for all
+	for _, f := range findings {
+		if f.Source != "mcp" {
+			t.Errorf("source = %q, want mcp", f.Source)
+		}
+	}
+}
+
+func TestParseMCPFile_EmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	mcpPath := filepath.Join(dir, "mcp.json")
+	os.WriteFile(mcpPath, []byte(`{}`), 0644)
+
+	findings := parseMCPFile(mcpPath)
+	if len(findings) != 0 {
+		t.Errorf("expected 0 findings, got %d", len(findings))
+	}
+}
+
+func TestParseMCPFile_NoKeys(t *testing.T) {
+	dir := t.TempDir()
+	mcpPath := filepath.Join(dir, "mcp.json")
+
+	mcpJSON := `{
+		"mcpServers": {
+			"no-secrets": {
+				"command": "echo",
+				"args": ["hello"]
+			}
+		}
+	}`
+	os.WriteFile(mcpPath, []byte(mcpJSON), 0644)
+
+	findings := parseMCPFile(mcpPath)
+	if len(findings) != 0 {
+		t.Errorf("expected 0 findings, got %d", len(findings))
+	}
+}
+
 func TestScanEnv(t *testing.T) {
 	// Save and restore env
 	oldKey := os.Getenv("OPENAI_API_KEY")

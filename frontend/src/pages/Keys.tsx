@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Plus, Eye, EyeOff, KeyRound, Copy, Check } from 'lucide-react'
-import { api } from '../api'
-import { formatUSD } from '../lib/utils'
+import { Plus, Eye, EyeOff, KeyRound, Copy, Check, History, Clock } from 'lucide-react'
+import { api, type KeyAuditEntry } from '../api'
+import { formatUSD, cn } from '../lib/utils'
 import { PageHeader, Button, Modal, Input, Select, Badge, Skeleton } from '../components/ui'
 import { useToast } from '../lib/use-toast'
 
@@ -24,6 +24,9 @@ export function Keys() {
   const [loading, setLoading] = useState(true)
   const [decrypted, setDecrypted] = useState<Record<string, string>>({})
   const [copied, setCopied] = useState<string | null>(null)
+  const [auditKey, setAuditKey] = useState<KeyItem | null>(null)
+  const [auditLogs, setAuditLogs] = useState<KeyAuditEntry[]>([])
+  const [auditLoading, setAuditLoading] = useState(false)
   const toast = useToast()
 
   useEffect(() => { load() }, [])
@@ -62,6 +65,24 @@ export function Keys() {
     setTimeout(() => setCopied(null), 2000)
   }
 
+  async function handleAudit(k: KeyItem) {
+    setAuditKey(k)
+    setAuditLoading(true)
+    try {
+      const { audit_logs } = await api.keys.audit(k.id)
+      setAuditLogs(audit_logs)
+    } catch {
+      setAuditLogs([])
+    } finally {
+      setAuditLoading(false)
+    }
+  }
+
+  function closeAudit() {
+    setAuditKey(null)
+    setAuditLogs([])
+  }
+
   const providerMap: Record<string, string> = {}
   providers.forEach((p) => { providerMap[p.id] = p.name })
 
@@ -78,6 +99,44 @@ export function Keys() {
           </Button>
         }
       />
+
+      <Modal open={!!auditKey} onClose={closeAudit} title={`审计日志 — ${auditKey?.name || '未命名'}`}>
+        {auditLoading ? (
+          <div className="flex items-center gap-2 text-sm text-slate-500 py-4">
+            <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+            加载中...
+          </div>
+        ) : auditLogs.length === 0 ? (
+          <p className="text-sm text-slate-400 py-4">暂无审计记录</p>
+        ) : (
+          <div className="space-y-1 max-h-80 overflow-y-auto">
+            {auditLogs.map((entry) => (
+              <div key={entry.id} className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                <div className={cn(
+                  'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
+                  actionStyle[entry.action]?.bg || 'bg-slate-100 dark:bg-slate-700'
+                )}>
+                  <Clock className={cn('w-4 h-4', actionStyle[entry.action]?.color || 'text-slate-400')} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      'text-xs font-medium px-1.5 py-0.5 rounded',
+                      actionStyle[entry.action]?.badge || 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                    )}>
+                      {actionLabel[entry.action] || entry.action}
+                    </span>
+                    {entry.detail && (
+                      <span className="text-xs text-slate-400 dark:text-slate-500 truncate">{entry.detail}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{formatTime(entry.created_at)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="新建 API Key">
         <div className="grid grid-cols-1 gap-3">
@@ -142,6 +201,9 @@ export function Keys() {
             </div>
 
             <div className="flex gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button type="button" onClick={() => handleAudit(k)} className="flex-1 px-3 py-1.5 text-xs text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition flex items-center justify-center gap-1">
+                <History className="w-3 h-3" /> 审计
+              </button>
               <button type="button" onClick={async () => { await api.keys.revoke(k.id); load() }} className="flex-1 px-3 py-1.5 text-xs text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition">撤销</button>
               <button type="button" onClick={async () => { await api.keys.delete(k.id); load() }} className="flex-1 px-3 py-1.5 text-xs text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition">删除</button>
             </div>
@@ -174,6 +236,26 @@ function StatusBadge({ status }: { status: string }) {
     invalid: 'muted',
   }
   return <Badge variant={variantMap[status] || 'muted'}>{status}</Badge>
+}
+
+const actionLabel: Record<string, string> = {
+  created: '已创建',
+  revoked: '已撤销',
+  deleted: '已删除',
+  auto_imported: '自动导入',
+}
+
+const actionStyle: Record<string, { bg: string; color: string; badge: string }> = {
+  created: { bg: 'bg-emerald-100 dark:bg-emerald-950/40', color: 'text-emerald-500', badge: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' },
+  revoked: { bg: 'bg-amber-100 dark:bg-amber-950/40', color: 'text-amber-500', badge: 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400' },
+  deleted: { bg: 'bg-red-100 dark:bg-red-950/40', color: 'text-red-500', badge: 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400' },
+  auto_imported: { bg: 'bg-blue-100 dark:bg-blue-950/40', color: 'text-blue-500', badge: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400' },
+}
+
+function formatTime(ts: string): string {
+  if (!ts) return ''
+  const d = new Date(ts + (ts.endsWith('Z') ? '' : 'Z'))
+  return d.toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function LoadingSkeleton() {

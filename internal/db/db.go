@@ -13,7 +13,7 @@ import (
 
 const (
 	// currentVersion is the target schema version. Bump this when adding new migrations.
-	currentVersion = 5
+	currentVersion = 6
 )
 
 // DB wraps the APIHub SQLite connection.
@@ -89,6 +89,7 @@ func (d *DB) Migrate() error {
 		3: migrateV3,
 		4: migrateV4,
 		5: migrateV5,
+		6: migrateV6,
 	}
 
 	for v := version + 1; v <= currentVersion; v++ {
@@ -411,6 +412,27 @@ func migrateV5(tx *sql.Tx) error {
 			if strings.Contains(err.Error(), "duplicate column") {
 				continue
 			}
+			return fmt.Errorf("%s: %w", truncate(ddl, 60), err)
+		}
+	}
+	return nil
+}
+
+func migrateV6(tx *sql.Tx) error {
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS key_audit_log (
+			id TEXT PRIMARY KEY,
+			key_id TEXT NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
+			action TEXT NOT NULL,
+			detail TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_audit_key_id ON key_audit_log(key_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_audit_created ON key_audit_log(created_at)`,
+	}
+
+	for _, ddl := range stmts {
+		if _, err := tx.Exec(ddl); err != nil {
 			return fmt.Errorf("%s: %w", truncate(ddl, 60), err)
 		}
 	}

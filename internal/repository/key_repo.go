@@ -156,3 +156,51 @@ type KeyDetail struct {
 	BaseURL      string
 	ProviderType string
 }
+
+// KeyAuditRepo handles key audit log database operations.
+type KeyAuditRepo struct {
+	db *sql.DB
+}
+
+// NewKeyAuditRepo creates a new KeyAuditRepo.
+func NewKeyAuditRepo(db *sql.DB) *KeyAuditRepo {
+	return &KeyAuditRepo{db: db}
+}
+
+// LogAction records an audit event for a key.
+func (r *KeyAuditRepo) LogAction(id, keyID, action, detail string) error {
+	_, err := r.db.Exec(
+		`INSERT INTO key_audit_log (id, key_id, action, detail) VALUES (?, ?, ?, ?)`,
+		id, keyID, action, detail,
+	)
+	return err
+}
+
+// ListByKeyID returns all audit log entries for a given key, ordered by most recent first.
+func (r *KeyAuditRepo) ListByKeyID(keyID string) ([]model.KeyAuditLog, error) {
+	rows, err := r.db.Query(
+		`SELECT id, key_id, action, detail, created_at FROM key_audit_log WHERE key_id = ? ORDER BY created_at DESC`,
+		keyID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var logs []model.KeyAuditLog
+	for rows.Next() {
+		var l model.KeyAuditLog
+		var createdAt sql.NullString
+		if err := rows.Scan(&l.ID, &l.KeyID, &l.Action, &l.Detail, &createdAt); err != nil {
+			continue
+		}
+		if createdAt.Valid {
+			l.CreatedAt, _ = parseTime(createdAt.String)
+		}
+		logs = append(logs, l)
+	}
+	if logs == nil {
+		logs = []model.KeyAuditLog{}
+	}
+	return logs, nil
+}
