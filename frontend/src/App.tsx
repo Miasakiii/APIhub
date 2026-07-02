@@ -17,15 +17,8 @@ import { Login } from './pages/Login'
 // Route-level code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })))
 const ModelDetail = lazy(() => import('./pages/ModelDetail').then(m => ({ default: m.ModelDetail })))
-const Providers = lazy(() => import('./pages/Providers').then(m => ({ default: m.Providers })))
-const Keys = lazy(() => import('./pages/Keys').then(m => ({ default: m.Keys })))
 const UsageLog = lazy(() => import('./pages/UsageLog').then(m => ({ default: m.UsageLog })))
-const Alerts = lazy(() => import('./pages/Alerts').then(m => ({ default: m.Alerts })))
-const Subscriptions = lazy(() => import('./pages/Subscriptions').then(m => ({ default: m.Subscriptions })))
 const Frequency = lazy(() => import('./pages/Frequency').then(m => ({ default: m.Frequency })))
-const Sessions = lazy(() => import('./pages/Sessions').then(m => ({ default: m.Sessions })))
-const Agents = lazy(() => import('./pages/Agents').then(m => ({ default: m.Agents })))
-const Playground = lazy(() => import('./pages/Playground').then(m => ({ default: m.Playground })))
 const SettingsPage = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
 
 function PageLoader() {
@@ -83,15 +76,8 @@ function AppLayout({ onLogout, authEnabled }: { onLogout?: () => void; authEnabl
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/model/:model" element={<ModelDetail />} />
-                      <Route path="/providers" element={<Providers />} />
-                      <Route path="/keys" element={<Keys />} />
                       <Route path="/usage" element={<UsageLog />} />
-                      <Route path="/alerts" element={<Alerts />} />
-                      <Route path="/subscriptions" element={<Subscriptions />} />
                       <Route path="/frequency" element={<Frequency />} />
-                      <Route path="/sessions" element={<Sessions />} />
-                      <Route path="/agents" element={<Agents />} />
-                      <Route path="/playground" element={<Playground />} />
                       <Route path="/settings" element={<SettingsPage onLogout={authEnabled ? onLogout : undefined} />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
