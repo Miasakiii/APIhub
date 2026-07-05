@@ -20,6 +20,7 @@ func CORSMiddleware(cfg AuthConfig) gin.HandlerFunc {
 		// When using a wildcard ("*"), credentials must be false.
 		if origin != "*" {
 			c.Header("Access-Control-Allow-Credentials", "true")
+			c.Header("Vary", "Origin")
 		}
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -34,10 +35,10 @@ func SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-XSS-Protection", "1; mode=block")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header("X-Permitted-Cross-Domain-Policies", "none")
 		c.Header("X-Download-Options", "noopen")
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'")
 		c.Next()
 	}
 }

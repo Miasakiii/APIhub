@@ -165,6 +165,7 @@ func (a *WailsApp) initBackend() {
 	// Gin router
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
+	r.Use(api.SecurityHeaders())
 	r.Use(api.CORSMiddleware(authCfg))
 	api.Register(r, db.DB, store, authCfg, hub)
 

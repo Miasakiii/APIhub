@@ -92,14 +92,15 @@ func KeyHash(plaintext []byte) string {
 }
 
 func loadOrGenerateMasterKey(dataDir string) ([]byte, bool, error) {
-	// Prevent directory traversal attacks: resolve to absolute and verify
-	// the dataDir does not contain path traversal sequences.
-	absDataDir, err := filepath.Abs(dataDir)
+	// Prevent directory traversal attacks: clean the path and verify
+	// it does not contain path traversal sequences.
+	cleaned := filepath.Clean(dataDir)
+	if strings.Contains(cleaned, ".."+string(filepath.Separator)) || strings.HasSuffix(cleaned, "..") {
+		return nil, false, fmt.Errorf("data dir contains path traversal: %s", dataDir)
+	}
+	absDataDir, err := filepath.Abs(cleaned)
 	if err != nil {
 		return nil, false, fmt.Errorf("resolve data dir: %w", err)
-	}
-	if strings.Contains(dataDir, "..") {
-		return nil, false, fmt.Errorf("data dir contains path traversal: %s", dataDir)
 	}
 
 	path := filepath.Join(absDataDir, keyFile)
