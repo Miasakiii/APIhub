@@ -6,10 +6,15 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	_ "modernc.org/sqlite"
 )
+
+// validIdentifier is a whitelist regex for SQL identifiers (tables, columns).
+// Only allows alphanumeric characters and underscores, 1-128 chars.
+var validIdentifier = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]{0,127}$`)
 
 const (
 	// currentVersion is the target schema version. Bump this when adding new migrations.
@@ -45,7 +50,12 @@ func Open(dbPath string) (*DB, error) {
 }
 
 // columnExists checks if a column exists in a table.
+// Uses whitelist validation on table and column names to prevent SQL injection.
 func (d *DB) columnExists(table, column string) bool {
+	if !validIdentifier.MatchString(table) || !validIdentifier.MatchString(column) {
+		log.Printf("[db] columnExists: invalid identifier (table=%q, column=%q)", table, column)
+		return false
+	}
 	var count int
 	query := fmt.Sprintf("SELECT COUNT(*) FROM pragma_table_info('%s') WHERE name='%s'", table, column)
 	d.QueryRow(query).Scan(&count)
@@ -61,6 +71,11 @@ func (d *DB) getVersion() (int, error) {
 
 // setVersion writes the schema version via PRAGMA user_version.
 func (d *DB) setVersion(v int) error {
+	// v is always a trusted integer from internal migration logic, but
+	// we still enforce a reasonable range as defense-in-depth.
+	if v < 0 || v > 9999 {
+		return fmt.Errorf("setVersion: invalid version %d", v)
+	}
 	_, err := d.Exec(fmt.Sprintf("PRAGMA user_version=%d", v))
 	return err
 }

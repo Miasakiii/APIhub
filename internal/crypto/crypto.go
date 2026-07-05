@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/crypto/hkdf"
 )
@@ -91,7 +92,17 @@ func KeyHash(plaintext []byte) string {
 }
 
 func loadOrGenerateMasterKey(dataDir string) ([]byte, bool, error) {
-	path := filepath.Join(dataDir, keyFile)
+	// Prevent directory traversal attacks: resolve to absolute and verify
+	// the dataDir does not contain path traversal sequences.
+	absDataDir, err := filepath.Abs(dataDir)
+	if err != nil {
+		return nil, false, fmt.Errorf("resolve data dir: %w", err)
+	}
+	if strings.Contains(dataDir, "..") {
+		return nil, false, fmt.Errorf("data dir contains path traversal: %s", dataDir)
+	}
+
+	path := filepath.Join(absDataDir, keyFile)
 	if data, err := os.ReadFile(path); err == nil && len(data) == 64 {
 		key := make([]byte, 32)
 		n, err := hex.Decode(key, data[:64])
