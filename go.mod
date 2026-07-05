@@ -4,8 +4,10 @@ go 1.26.3
 
 require (
 	github.com/gin-gonic/gin v1.12.0
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/gorilla/websocket v1.5.3
 	github.com/pelletier/go-toml/v2 v2.2.4
+	github.com/wailsapp/wails/v2 v2.12.0
 	golang.org/x/crypto v0.51.0
 	modernc.org/sqlite v1.34.0
 )
@@ -18,7 +20,6 @@ require (
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/emersion/go-autostart v0.0.0-20250403115856-34830d6457d2 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -29,7 +30,6 @@ require (
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/jchv/go-winloader v0.0.0-20210711035445-715c2860da7e // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -60,7 +60,6 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
-	github.com/wailsapp/wails/v2 v2.12.0 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	golang.org/x/arch v0.22.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
