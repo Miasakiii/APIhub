@@ -19,41 +19,24 @@ It aggregates data from three sources:
 
 ## Current Status
 
-> Snapshot: **v0.13 stable**, updated 2026-06-19.
+> Snapshot: **v0.16 重构完成**，更新于 2026-07-02.
 
-APIHub has a real backend, database schema, auth flow, scheduler, sync paths, and a polished React dashboard with dark mode support. Docker serves the frontend in a single container — `docker-compose up --build` is sufficient to run the full UI.
+APIHub 已重构为精简版，专注大模型 API 用量监控。借鉴 token-monitor 的设计哲学，提供简洁、实时、一目了然的监控体验。
 
-Two ways to run:
+两种运行方式：
 
-- **Docker** (recommended): `docker-compose up --build` → open `http://localhost:8080`
-- **Dev mode**: Go backend on `http://localhost:8080` + Vite frontend on `http://localhost:5173`
+- **Docker** (推荐): `docker-compose up --build` → 打开 `http://localhost:8080`
+- **开发模式**: Go 后端 `http://localhost:8080` + Vite 前端 `http://localhost:5173`
 
-Latest local verification:
+最新验证状态：
 
-| Check | Result |
-|---|---|
-| `npm.cmd run build` in `frontend/` | ✅ Pass (code-split, no chunk warning) |
-| `npm.cmd run lint` in `frontend/` | ✅ Pass (0 errors, 0 warnings) |
-| `npm.cmd run test` in `frontend/` | ✅ Pass (42 tests) |
-| `go test ./internal/...` | ✅ Pass |
-| `go vet ./internal/...` | ✅ Pass |
-
-Test coverage (v0.14):
-
-| Package | Coverage |
-|---|---|
-| util | 100% |
-| scanner | 83.1% |
-| crypto | 76.0% |
-| db | 67.8% |
-| repository | 41.1% |
-| service | 40.0% |
-| api | 28.8% |
-| alert | 22.0% |
-| ws | 17.2% |
-| aggregator | 11.1% |
-
-v0.14 adds desktop settings panel, notification integration, and comprehensive unit tests. See [ROADMAP.md](ROADMAP.md) for P3+ plans.
+| 检查项 | 结果 |
+|--------|------|
+| `npm run build` (`frontend/`) | ✅ 通过 |
+| `npm run lint` (`frontend/`) | ✅ 通过 |
+| `npm run test` (`frontend/`) | ✅ 通过 (40 个测试) |
+| `go test ./internal/...` | ✅ 通过 |
+| `go vet ./internal/...` | ✅ 通过 |
 
 ## Features
 
@@ -61,7 +44,8 @@ v0.14 adds desktop settings panel, notification integration, and comprehensive u
 
 - **实时用量扫描** - 自动扫描 Claude Code、Codex、OpenCode 等工具的本地日志
 - **成本统计** - 按模型、按天汇总费用，内置 35+ 模型定价
-- **简单仪表盘** - 今日费用、总 Token 数、模型排行、最近用量
+- **丰富仪表盘** - 费用趋势图、模型分布图、今日对比、最近用量
+- **一键扫描** - 类似 ATM，自动检测并导入本地 AI 工具配置
 - **历史记录** - 按天/周/月查看用量趋势
 
 ### 界面特性
@@ -69,6 +53,7 @@ v0.14 adds desktop settings panel, notification integration, and comprehensive u
 - **暗色模式** - 完整 dark/light 主题切换，localStorage 持久化
 - **紧凑模式** - 侧边栏可折叠为图标模式，Ctrl+Shift+C 快捷切换
 - **实时更新** - WebSocket 推送，秒级刷新
+- **柔和 UI** - 优化的对比度，视觉更舒适
 - **简洁导航** - 只保留核心页面，一目了然
 
 ### 数据源
@@ -392,7 +377,8 @@ MIT License - see [LICENSE](LICENSE) file.
 
 - **实时用量扫描** - 自动扫描 Claude Code、Codex 等工具的本地日志
 - **成本统计** - 按模型、按天汇总费用
-- **简单仪表盘** - 今日费用、总 Token 数、模型排行
+- **丰富仪表盘** - 费用趋势图、模型分布图、今日对比、最近用量
+- **一键扫描** - 类似 ATM，自动检测并导入本地 AI 工具配置
 - **暗色模式** - 完整 dark/light 主题切换
 - **紧凑模式** - 侧边栏可折叠为图标模式
 
